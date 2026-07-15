@@ -18,6 +18,7 @@ import { ReportsPage } from '@/components/admin/reports/ReportsPage'
 
 function App() {
   const initialize = useAuthStore((s) => s.initialize)
+  const session = useAuthStore((s) => s.session)
 
   useEffect(() => {
     void initialize()
@@ -27,7 +28,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" element={session ? <Navigate to="/" replace /> : <LoginPage />} />
 
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>

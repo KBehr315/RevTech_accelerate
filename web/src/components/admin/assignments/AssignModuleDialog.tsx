@@ -25,11 +25,15 @@ export function AssignModuleDialog() {
   const [employeeIds, setEmployeeIds] = useState<string[]>([])
   const [dueAt, setDueAt] = useState('')
 
-  const { data: modules } = useModules()
+  const { data: allModules } = useModules()
   const { data: profiles } = useProfiles()
   const bulkAssign = useBulkAssign()
   const profile = useAuthStore((s) => s.profile)
 
+  // Draft modules aren't visible to employees even if assigned (enforced at
+  // the RLS level too) — only offer published ones here so admins can't
+  // accidentally assign something unfinished.
+  const modules = (allModules ?? []).filter((m) => m.is_published)
   const employees = (profiles ?? []).filter((p) => p.role === 'employee' && p.is_active)
 
   function reset() {
@@ -77,13 +81,18 @@ export function AssignModuleDialog() {
                 <SelectValue placeholder="Choose a module…" />
               </SelectTrigger>
               <SelectContent>
-                {(modules ?? []).map((m) => (
+                {modules.map((m) => (
                   <SelectItem key={m.id} value={m.id}>
                     {m.title}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {modules.length === 0 && (
+              <p className="text-xs text-slate-400">
+                No published modules yet — finish and publish one from the Modules page first.
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5">

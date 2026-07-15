@@ -75,14 +75,22 @@ export function ModuleEditPage() {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
-  const canSave =
-    form.title.trim().length > 0 &&
-    (form.contentType === 'in_app'
+  // A draft only needs a title. Full content is required to *publish*, not
+  // to save — this is what lets an admin start a module and finish it later.
+  const hasContent =
+    form.contentType === 'in_app'
       ? form.blocks.length > 0
-      : !!form.externalType && form.externalUrl.trim().length > 0)
+      : !!form.externalType && form.externalUrl.trim().length > 0
+
+  const canSave = form.title.trim().length > 0
+  const canPublish = canSave && hasContent
 
   async function handleSave() {
     if (!profile) return
+    const publishing = form.isPublished && canPublish
+    if (form.isPublished && !canPublish) {
+      toast.warning('Add module content before publishing — saved as a draft instead.')
+    }
     setSaving(true)
     try {
       const payload = {
@@ -94,16 +102,16 @@ export function ModuleEditPage() {
         external_url: form.contentType === 'external' ? form.externalUrl.trim() : null,
         renewal_period_months: form.renewalMonths ? Number(form.renewalMonths) : null,
         passing_score_pct: Number(form.passingScore) || 80,
-        is_published: form.isPublished,
+        is_published: publishing,
       }
 
       if (isNew) {
         const created = await createModule.mutateAsync({ ...payload, created_by: profile.id })
-        toast.success('Module created — add quiz questions next')
+        toast.success(publishing ? 'Module created and published' : 'Draft saved — add quiz questions next')
         navigate(`/admin/modules/${created.id}`, { replace: true })
       } else {
         await updateModule.mutateAsync({ id: moduleId!, input: payload })
-        toast.success('Module saved')
+        toast.success(publishing ? 'Module saved and published' : 'Draft saved')
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not save module')
@@ -205,17 +213,32 @@ export function ModuleEditPage() {
                 />
               )}
 
-              <label className="flex w-fit items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={form.isPublished}
-                  onChange={(e) => set('isPublished', e.target.checked)}
-                />
-                Published (visible to assigned employees)
-              </label>
+              <div className="flex flex-col gap-1">
+                <label className="flex w-fit items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={form.isPublished}
+                    disabled={!hasContent}
+                    onChange={(e) => set('isPublished', e.target.checked)}
+                  />
+                  Published (visible to assigned employees)
+                </label>
+                {!hasContent && (
+                  <p className="text-xs text-slate-400">
+                    Add {form.contentType === 'in_app' ? 'at least one content block' : 'a content URL'} before
+                    publishing — until then this saves as a draft only you (and other admins) can see.
+                  </p>
+                )}
+              </div>
 
               <Button onClick={handleSave} disabled={!canSave || saving} className="w-fit">
-                {saving ? 'Saving…' : isNew ? 'Create Module' : 'Save Changes'}
+                {saving
+                  ? 'Saving…'
+                  : form.isPublished && canPublish
+                    ? isNew
+                      ? 'Create & Publish'
+                      : 'Save & Publish'
+                    : 'Save Draft'}
               </Button>
             </CardContent>
           </Card>
