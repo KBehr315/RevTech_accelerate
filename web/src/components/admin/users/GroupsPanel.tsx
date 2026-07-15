@@ -66,7 +66,7 @@ export function GroupsPanel() {
   }
 
   return (
-    <Card>
+    <Card className="bg-brand-100/60">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
