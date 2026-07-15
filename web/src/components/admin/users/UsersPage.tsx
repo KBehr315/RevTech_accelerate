@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useProfiles, useSetProfileActive, useSetProfileRole } from '@/hooks/useProfiles'
 import { useAuthStore } from '@/store/authStore'
 import { UserInviteDialog } from './UserInviteDialog'
+import { GroupsPanel } from './GroupsPanel'
 
 export function UsersPage() {
   const { data: profiles, isLoading } = useProfiles()
@@ -38,6 +39,8 @@ export function UsersPage() {
         </div>
         <UserInviteDialog />
       </div>
+
+      <GroupsPanel />
 
       <Card>
         <CardHeader>

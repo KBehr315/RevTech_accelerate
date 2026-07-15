@@ -90,6 +90,21 @@ export interface Attempt {
   updated_at: string
 }
 
+export interface EmployeeGroup {
+  id: string
+  name: string
+  description: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface EmployeeGroupMember {
+  group_id: string
+  employee_id: string
+  added_at: string
+}
+
 export interface AssignmentStatus {
   assignment_id: string
   module_id: string

@@ -9,6 +9,7 @@ import { EmployeePicker } from './EmployeePicker'
 import { useModules } from '@/hooks/useModules'
 import { useProfiles } from '@/hooks/useProfiles'
 import { useBulkAssign } from '@/hooks/useAssignments'
+import { useAllMemberships, useGroups } from '@/hooks/useGroups'
 import { useAuthStore } from '@/store/authStore'
 
 export function AssignModulePanel() {
@@ -19,6 +20,8 @@ export function AssignModulePanel() {
 
   const { data: allModules } = useModules()
   const { data: profiles } = useProfiles()
+  const { data: groups } = useGroups()
+  const { data: memberships } = useAllMemberships()
   const bulkAssign = useBulkAssign()
   const profile = useAuthStore((s) => s.profile)
 
@@ -32,6 +35,11 @@ export function AssignModulePanel() {
     setModuleId('')
     setEmployeeIds([])
     setDueAt('')
+  }
+
+  function addGroup(groupId: string) {
+    const memberIds = (memberships ?? []).filter((m) => m.group_id === groupId).map((m) => m.employee_id)
+    setEmployeeIds((prev) => Array.from(new Set([...prev, ...memberIds])))
   }
 
   async function handleAssign() {
@@ -93,6 +101,20 @@ export function AssignModulePanel() {
 
           <div className="flex flex-col gap-1.5">
             <Label>Employees</Label>
+            {groups && groups.length > 0 && (
+              <Select value="" onValueChange={addGroup}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Add everyone from a group…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      {g.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <EmployeePicker employees={employees} selected={employeeIds} onChange={setEmployeeIds} />
           </div>
 

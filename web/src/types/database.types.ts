@@ -160,6 +160,40 @@ export interface Database {
         Update: Record<string, never>
         Relationships: []
       }
+      employee_groups: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          created_by: string
+        }
+        Update: {
+          name?: string
+          description?: string | null
+        }
+        Relationships: []
+      }
+      employee_group_members: {
+        Row: {
+          group_id: string
+          employee_id: string
+          added_at: string
+        }
+        Insert: {
+          group_id: string
+          employee_id: string
+        }
+        Update: Record<string, never>
+        Relationships: []
+      }
     }
     Views: {
       assignment_status: {
