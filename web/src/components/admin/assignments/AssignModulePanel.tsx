@@ -51,7 +51,7 @@ export function AssignModulePanel() {
   }
 
   return (
-    <Card className="bg-sky-100/50">
+    <Card className="bg-sky-300/40">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
