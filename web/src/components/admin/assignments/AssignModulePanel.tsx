@@ -1,26 +1,18 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+import { ChevronDown, ChevronUp } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Label } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus } from 'lucide-react'
 import { EmployeePicker } from './EmployeePicker'
 import { useModules } from '@/hooks/useModules'
 import { useProfiles } from '@/hooks/useProfiles'
 import { useBulkAssign } from '@/hooks/useAssignments'
 import { useAuthStore } from '@/store/authStore'
 
-export function AssignModuleDialog() {
-  const [open, setOpen] = useState(false)
+export function AssignModulePanel() {
+  const [open, setOpen] = useState(true)
   const [moduleId, setModuleId] = useState<string>('')
   const [employeeIds, setEmployeeIds] = useState<string[]>([])
   const [dueAt, setDueAt] = useState('')
@@ -53,27 +45,31 @@ export function AssignModuleDialog() {
       })
       toast.success(`Assigned to ${employeeIds.length} employee${employeeIds.length === 1 ? '' : 's'}`)
       reset()
-      setOpen(false)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not create assignment')
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4" />
-          New Assignment
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Assign Training</DialogTitle>
-          <DialogDescription>Assign a module to one or more employees.</DialogDescription>
-        </DialogHeader>
+    <Card>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between p-5 text-left"
+      >
+        <div>
+          <p className="font-heading text-base font-semibold text-slate-900">Assign Training</p>
+          <p className="text-sm text-slate-500">Assign a module to one or more employees.</p>
+        </div>
+        {open ? (
+          <ChevronUp className="h-5 w-5 shrink-0 text-slate-400" />
+        ) : (
+          <ChevronDown className="h-5 w-5 shrink-0 text-slate-400" />
+        )}
+      </button>
 
-        <div className="flex flex-col gap-4">
+      {open && (
+        <CardContent className="flex flex-col gap-4 border-t border-border pt-4">
           <div className="flex flex-col gap-1.5">
             <Label>Module</Label>
             <Select value={moduleId} onValueChange={setModuleId}>
@@ -102,22 +98,22 @@ export function AssignModuleDialog() {
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="due-at">Due date (optional)</Label>
-            <Input id="due-at" type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+            <Input id="due-at" type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} className="w-48" />
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleAssign}
-            disabled={!moduleId || employeeIds.length === 0 || bulkAssign.isPending}
-          >
-            {bulkAssign.isPending ? 'Assigning…' : 'Assign'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={reset} disabled={bulkAssign.isPending}>
+              Clear
+            </Button>
+            <Button
+              onClick={handleAssign}
+              disabled={!moduleId || employeeIds.length === 0 || bulkAssign.isPending}
+            >
+              {bulkAssign.isPending ? 'Assigning…' : 'Assign'}
+            </Button>
+          </div>
+        </CardContent>
+      )}
+    </Card>
   )
 }
