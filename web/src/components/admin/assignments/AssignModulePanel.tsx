@@ -51,14 +51,14 @@ export function AssignModulePanel() {
   }
 
   return (
-    <Card>
+    <Card className="bg-sky-100/50">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between p-5 text-left"
       >
         <div>
-          <p className="font-heading text-base font-semibold text-slate-900">Assign Training</p>
+          <p className="font-heading text-[17.3px] font-semibold text-[#0B76A0]">Assign Training</p>
           <p className="text-sm text-slate-500">Assign a module to one or more employees.</p>
         </div>
         {open ? (
