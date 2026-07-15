@@ -22,11 +22,8 @@ export function AppShell() {
   return (
     <div className="flex min-h-svh">
       <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-white">
-        <div className="flex items-center gap-2 border-b border-border px-4 py-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
-            <GraduationCap className="h-5 w-5" />
-          </div>
-          <span className="font-heading text-sm font-semibold text-slate-900">Compliance Training</span>
+        <div className="flex items-center border-b border-border px-4 py-4">
+          <img src="/revtech-logo.png" alt="RevTech" className="h-6 w-auto" />
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">
           {links.map((link) => (
