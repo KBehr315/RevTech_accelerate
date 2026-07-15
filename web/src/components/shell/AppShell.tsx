@@ -24,7 +24,9 @@ export function AppShell() {
       <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-white">
         <div className="flex flex-col items-center justify-center gap-1 border-b border-border px-2 py-3">
           <img src="/revtech-logo.png" alt="RevTech" className="h-[72px] w-auto" />
-          <span className="text-center text-sm font-bold text-slate-900">Training &amp; Enablement</span>
+          <span className="text-center font-heading text-sm font-bold uppercase tracking-wide text-brand-900">
+            Training &amp; Enablement
+          </span>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">
           {links.map((link) => (
