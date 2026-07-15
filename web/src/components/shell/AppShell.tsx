@@ -36,7 +36,7 @@ export function AppShell() {
               end={link.end}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-surface-muted',
+                  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-surface-muted hover:text-[#0B76A0]',
                   isActive && 'bg-brand-50 text-brand-700',
                 )
               }
