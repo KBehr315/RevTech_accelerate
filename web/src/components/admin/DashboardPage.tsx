@@ -1,10 +1,10 @@
-import { Link } from 'react-router-dom'
 import { AlertTriangle, BookOpen, CheckCircle2, Circle, Clock, Users } from 'lucide-react'
 import { useModules } from '@/hooks/useModules'
 import { useProfiles } from '@/hooks/useProfiles'
 import { useAllAssignmentStatus } from '@/hooks/useAssignments'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHelp } from '@/components/common/PageHelp'
 import { OverdueTable } from './reports/OverdueTable'
 
 function Tile({
@@ -58,9 +58,12 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-heading text-2xl font-semibold text-slate-900">Dashboard</h1>
-        <p className="text-sm text-slate-500">A snapshot of your organization's training compliance.</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold text-slate-900">Dashboard</h1>
+          <p className="text-sm text-slate-500">A snapshot of your organization's training compliance.</p>
+        </div>
+        <PageHelp helpKey="admin-dashboard" />
       </div>
 
       {loading ? (
@@ -86,36 +89,6 @@ export function DashboardPage() {
         </CardHeader>
         <CardContent>
           <OverdueTable rows={overdue} nameById={nameById} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Get started</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 text-sm text-slate-600">
-          <p>
-            1. Create a training module in{' '}
-            <Link to="/admin/modules" className="text-brand-600 hover:underline">
-              Modules
-            </Link>
-            .
-          </p>
-          <p>
-            2. Invite your team in{' '}
-            <Link to="/admin/users" className="text-brand-600 hover:underline">
-              Employees
-            </Link>
-            .
-          </p>
-          <p>
-            3. Assign the module to employees in{' '}
-            <Link to="/admin/assignments" className="text-brand-600 hover:underline">
-              Assignments
-            </Link>
-            .
-          </p>
-          <p>4. Track completion right here on the Dashboard as training gets underway.</p>
         </CardContent>
       </Card>
     </div>

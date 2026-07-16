@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatDate, formatScore } from '@/lib/utils'
+import { PageHelp } from '@/components/common/PageHelp'
 import type { AssignmentStatus } from '@/types/domain'
 
 function statusBadge(row: AssignmentStatus) {
@@ -31,9 +32,12 @@ export function EmployeeDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-heading text-2xl font-semibold text-slate-900">My Training</h1>
-        <p className="text-sm text-slate-500">Your assigned trainings, completion history, and renewal dates.</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold text-slate-900">My Training</h1>
+          <p className="text-sm text-slate-500">Your assigned trainings, completion history, and renewal dates.</p>
+        </div>
+        <PageHelp helpKey="employee-dashboard" />
       </div>
 
       {overdueCount > 0 && (

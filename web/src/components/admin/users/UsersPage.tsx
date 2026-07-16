@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProfiles, useSetProfileActive, useSetProfileRole } from '@/hooks/useProfiles'
 import { useAuthStore } from '@/store/authStore'
+import { PageHelp } from '@/components/common/PageHelp'
 import { UserInviteDialog } from './UserInviteDialog'
 import { GroupsPanel } from './GroupsPanel'
 
@@ -37,7 +38,10 @@ export function UsersPage() {
           <h1 className="font-heading text-2xl font-semibold text-slate-900">Employees</h1>
           <p className="text-sm text-slate-500">Invite employees and manage admin access.</p>
         </div>
-        <UserInviteDialog />
+        <div className="flex items-center gap-2">
+          <UserInviteDialog />
+          <PageHelp helpKey="admin-users" />
+        </div>
       </div>
 
       <GroupsPanel />

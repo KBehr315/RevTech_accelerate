@@ -7,6 +7,7 @@ import { useMyAttempts, useMarkContentViewed, useStartAttempt, useSubmitAttempt 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHelp } from '@/components/common/PageHelp'
 import { ContentBlockRenderer } from './ContentBlockRenderer'
 import { EmbeddedContentViewer } from './EmbeddedContentViewer'
 import { QuizRunner } from './QuizRunner'
@@ -94,8 +95,9 @@ export function TrainingPlayerPage() {
   if (completedAttempt) {
     return (
       <Card>
-        <CardHeader>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
           <CardTitle>{module.title}</CardTitle>
+          <PageHelp helpKey="training-player" />
         </CardHeader>
         <CardContent>
           <ResultScreen
@@ -113,8 +115,9 @@ export function TrainingPlayerPage() {
   if (!activeAttempt) {
     return (
       <Card>
-        <CardHeader>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
           <CardTitle>{module.title}</CardTitle>
+          <PageHelp helpKey="training-player" />
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {module.description && <p className="text-sm text-slate-600">{module.description}</p>}

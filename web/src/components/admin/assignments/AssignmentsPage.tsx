@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAllAssignmentStatus, useDeactivateAssignment } from '@/hooks/useAssignments'
 import { useProfiles } from '@/hooks/useProfiles'
 import { formatDate, formatScore } from '@/lib/utils'
+import { PageHelp } from '@/components/common/PageHelp'
 import { AssignModulePanel } from './AssignModulePanel'
 import type { AssignmentStatus } from '@/types/domain'
 
@@ -57,9 +58,12 @@ export function AssignmentsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-heading text-2xl font-semibold text-slate-900">Assignments</h1>
-        <p className="text-sm text-slate-500">Assign training modules to employees and track who's assigned what.</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold text-slate-900">Assignments</h1>
+          <p className="text-sm text-slate-500">Assign training modules to employees and track who's assigned what.</p>
+        </div>
+        <PageHelp helpKey="admin-assignments" />
       </div>
 
       <AssignModulePanel />

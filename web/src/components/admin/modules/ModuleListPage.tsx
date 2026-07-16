@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHelp } from '@/components/common/PageHelp'
 import { toast } from 'sonner'
 
 export function ModuleListPage() {
@@ -28,12 +29,15 @@ export function ModuleListPage() {
           <h1 className="font-heading text-2xl font-semibold text-slate-900">Training Modules</h1>
           <p className="text-sm text-slate-500">Author content in-app or link external resources, then attach a quiz.</p>
         </div>
-        <Button asChild>
-          <Link to="/admin/modules/new">
-            <Plus className="h-4 w-4" />
-            New Module
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild>
+            <Link to="/admin/modules/new">
+              <Plus className="h-4 w-4" />
+              New Module
+            </Link>
+          </Button>
+          <PageHelp helpKey="admin-modules" />
+        </div>
       </div>
 
       <Card>

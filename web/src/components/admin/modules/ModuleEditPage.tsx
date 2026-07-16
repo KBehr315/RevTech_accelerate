@@ -12,6 +12,7 @@ import { ContentBlockEditor } from './ContentBlockEditor'
 import { ExternalContentForm } from './ExternalContentForm'
 import { QuizBuilder } from '@/components/admin/quiz/QuizBuilder'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHelp } from '@/components/common/PageHelp'
 import type { ContentBlock, ExternalContentType, ModuleContentType } from '@/types/domain'
 
 interface FormState {
@@ -124,10 +125,11 @@ export function ModuleEditPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
+      <div className="flex items-start justify-between">
         <h1 className="font-heading text-2xl font-semibold text-slate-900">
           {isNew ? 'New Training Module' : 'Edit Module'}
         </h1>
+        <PageHelp helpKey="admin-module-edit" />
       </div>
 
       <Tabs defaultValue="content">
