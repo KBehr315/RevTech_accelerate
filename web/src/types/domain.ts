@@ -60,6 +60,7 @@ export interface Module {
   renewal_period_months: number | null
   passing_score_pct: number
   is_published: boolean
+  topics: string[]
   created_by: string
   created_at: string
   updated_at: string

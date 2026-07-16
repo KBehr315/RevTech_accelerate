@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, Search } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Label } from '@/components/ui/input'
@@ -11,10 +11,12 @@ import { useProfiles } from '@/hooks/useProfiles'
 import { useBulkAssign } from '@/hooks/useAssignments'
 import { useAllMemberships, useGroups } from '@/hooks/useGroups'
 import { useAuthStore } from '@/store/authStore'
+import { moduleMatchesSearch } from '@/lib/utils'
 
 export function AssignModulePanel() {
   const [open, setOpen] = useState(true)
   const [moduleId, setModuleId] = useState<string>('')
+  const [moduleSearch, setModuleSearch] = useState('')
   const [employeeIds, setEmployeeIds] = useState<string[]>([])
   const [dueAt, setDueAt] = useState('')
 
@@ -29,10 +31,12 @@ export function AssignModulePanel() {
   // the RLS level too) — only offer published ones here so admins can't
   // accidentally assign something unfinished.
   const modules = (allModules ?? []).filter((m) => m.is_published)
+  const filteredModules = modules.filter((m) => moduleMatchesSearch(m, moduleSearch))
   const employees = (profiles ?? []).filter((p) => p.role === 'employee' && p.is_active)
 
   function reset() {
     setModuleId('')
+    setModuleSearch('')
     setEmployeeIds([])
     setDueAt('')
   }
@@ -80,14 +84,24 @@ export function AssignModulePanel() {
         <CardContent className="flex flex-col gap-4 border-t border-border pt-4">
           <div className="flex flex-col gap-1.5">
             <Label>Module</Label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={moduleSearch}
+                onChange={(e) => setModuleSearch(e.target.value)}
+                placeholder="Search by title or topic…"
+                className="pl-8"
+              />
+            </div>
             <Select value={moduleId} onValueChange={setModuleId}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose a module…" />
               </SelectTrigger>
               <SelectContent>
-                {modules.map((m) => (
+                {filteredModules.map((m) => (
                   <SelectItem key={m.id} value={m.id}>
                     {m.title}
+                    {m.topics.length > 0 && ` (${m.topics.join(', ')})`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -96,6 +110,9 @@ export function AssignModulePanel() {
               <p className="text-xs text-slate-400">
                 No published modules yet — finish and publish one from the Modules page first.
               </p>
+            )}
+            {modules.length > 0 && filteredModules.length === 0 && (
+              <p className="text-xs text-slate-400">No modules match "{moduleSearch}".</p>
             )}
           </div>
 

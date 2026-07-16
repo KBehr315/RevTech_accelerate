@@ -44,3 +44,10 @@ export function initials(fullName: string): string {
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('')
 }
+
+/** Matches a query against a module's title or any of its topic tags. */
+export function moduleMatchesSearch(module: { title: string; topics: string[] }, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return module.title.toLowerCase().includes(q) || module.topics.some((t) => t.toLowerCase().includes(q))
+}

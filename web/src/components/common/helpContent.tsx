@@ -84,6 +84,10 @@ export const HELP_CONTENT = {
           A module saves as a <strong>draft</strong> with just a title — content is only required once you check
           "Published." Drafts are never visible to employees, even if one somehow gets assigned before it's finished.
         </p>
+        <p>
+          Tag modules with topics on the Edit Module page, then use the search box here (or on Assignments) to find
+          modules by title or topic.
+        </p>
       </>
     ),
   },
@@ -108,9 +112,13 @@ export const HELP_CONTENT = {
       <>
         <p>
           Assign a published module to one or more employees, with an optional due date. Use "Add everyone from a
-          group" to quickly pull in a whole employee group, then fine-tune individuals before assigning.
+          group" to quickly pull in a whole employee group, then fine-tune individuals before assigning. Search the
+          module list by title or topic if you're assigning from a large catalog.
         </p>
-        <p>Sort the list below by employee, module, or status — sorting by status puts overdue assignments first.</p>
+        <p>
+          Sort the list below by employee, module, or status — sorting by status puts overdue assignments first.
+          Search it by employee name, module title, or topic.
+        </p>
       </>
     ),
   },

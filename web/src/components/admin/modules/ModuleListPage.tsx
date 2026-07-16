@@ -1,16 +1,22 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Search, Trash2 } from 'lucide-react'
 import { useDeleteModule, useModules } from '@/hooks/useModules'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHelp } from '@/components/common/PageHelp'
+import { moduleMatchesSearch } from '@/lib/utils'
 import { toast } from 'sonner'
 
 export function ModuleListPage() {
   const { data: modules, isLoading } = useModules()
   const deleteModule = useDeleteModule()
+  const [search, setSearch] = useState('')
+
+  const filteredModules = (modules ?? []).filter((m) => moduleMatchesSearch(m, search))
 
   async function handleDelete(id: string, title: string) {
     if (!confirm(`Delete "${title}"? This also removes its quiz and assignments.`)) return
@@ -41,15 +47,27 @@ export function ModuleListPage() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
           <CardTitle>All Modules</CardTitle>
+          <div className="relative w-64">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by title or topic…"
+              className="pl-8"
+            />
+          </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {isLoading && <Skeleton className="h-40 w-full" />}
           {!isLoading && modules?.length === 0 && (
             <p className="py-8 text-center text-sm text-slate-400">No modules yet — create your first one.</p>
           )}
-          {modules?.map((m) => (
+          {!isLoading && modules && modules.length > 0 && filteredModules.length === 0 && (
+            <p className="py-8 text-center text-sm text-slate-400">No modules match "{search}".</p>
+          )}
+          {filteredModules.map((m) => (
             <div key={m.id} className="flex items-center justify-between rounded-lg border border-border p-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -60,6 +78,11 @@ export function ModuleListPage() {
                     {m.is_published ? 'Published' : 'Draft'}
                   </Badge>
                   <Badge variant="default">{m.content_type === 'in_app' ? 'In-app content' : 'External link'}</Badge>
+                  {m.topics.map((topic) => (
+                    <Badge key={topic} variant="neutral">
+                      {topic}
+                    </Badge>
+                  ))}
                 </div>
                 <p className="mt-1 text-xs text-slate-500">
                   Passing score {m.passing_score_pct}%

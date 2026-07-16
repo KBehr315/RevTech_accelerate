@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Search } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAllAssignmentStatus, useDeactivateAssignment } from '@/hooks/useAssignments'
 import { useProfiles } from '@/hooks/useProfiles'
+import { useModules } from '@/hooks/useModules'
 import { formatDate, formatScore } from '@/lib/utils'
 import { PageHelp } from '@/components/common/PageHelp'
 import { AssignModulePanel } from './AssignModulePanel'
@@ -32,12 +35,27 @@ type SortKey = 'employee' | 'module' | 'status'
 export function AssignmentsPage() {
   const { data: statuses, isLoading } = useAllAssignmentStatus()
   const { data: profiles } = useProfiles()
+  const { data: modules } = useModules()
   const deactivate = useDeactivateAssignment()
   const [sortBy, setSortBy] = useState<SortKey>('employee')
+  const [search, setSearch] = useState('')
 
   const nameById = new Map((profiles ?? []).map((p) => [p.id, p.full_name]))
+  const topicsByModuleId = new Map((modules ?? []).map((m) => [m.id, m.topics]))
 
-  const sortedStatuses = [...(statuses ?? [])].sort((a, b) => {
+  const q = search.trim().toLowerCase()
+  const searchedStatuses = (statuses ?? []).filter((row) => {
+    if (!q) return true
+    const employeeName = nameById.get(row.employee_id) ?? ''
+    const topics = topicsByModuleId.get(row.module_id) ?? []
+    return (
+      employeeName.toLowerCase().includes(q) ||
+      row.module_title.toLowerCase().includes(q) ||
+      topics.some((t) => t.toLowerCase().includes(q))
+    )
+  })
+
+  const sortedStatuses = [...searchedStatuses].sort((a, b) => {
     if (sortBy === 'employee') {
       return (nameById.get(a.employee_id) ?? '').localeCompare(nameById.get(b.employee_id) ?? '')
     }
@@ -71,29 +89,50 @@ export function AssignmentsPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle>All Assignments</CardTitle>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-500">Sort by</span>
-            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortKey)}>
-              <SelectTrigger className="w-36">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="employee">Employee</SelectItem>
-                <SelectItem value="module">Module</SelectItem>
-                <SelectItem value="status">Status</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-3">
+            <div className="relative w-64">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by employee, module, or topic…"
+                className="pl-8"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-500">Sort by</span>
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortKey)}>
+                <SelectTrigger className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="employee">Employee</SelectItem>
+                  <SelectItem value="module">Module</SelectItem>
+                  <SelectItem value="status">Status</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {isLoading && <Skeleton className="h-40 w-full" />}
-          {!isLoading && sortedStatuses.length === 0 && (
+          {!isLoading && (statuses ?? []).length === 0 && (
             <p className="py-8 text-center text-sm text-slate-400">No assignments yet.</p>
+          )}
+          {!isLoading && (statuses ?? []).length > 0 && sortedStatuses.length === 0 && (
+            <p className="py-8 text-center text-sm text-slate-400">No assignments match "{search}".</p>
           )}
           {sortedStatuses.map((row) => (
             <div key={row.assignment_id} className="flex items-center justify-between rounded-lg border border-border p-3">
               <div>
-                <p className="text-sm font-medium text-slate-900">{row.module_title}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-slate-900">{row.module_title}</p>
+                  {(topicsByModuleId.get(row.module_id) ?? []).map((topic) => (
+                    <Badge key={topic} variant="neutral">
+                      {topic}
+                    </Badge>
+                  ))}
+                </div>
                 <p className="text-xs text-slate-500">
                   {nameById.get(row.employee_id) ?? 'Unknown employee'}
                   {row.due_at && ` · Due ${formatDate(row.due_at)}`}

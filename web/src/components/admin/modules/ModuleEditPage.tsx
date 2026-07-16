@@ -13,6 +13,7 @@ import { ExternalContentForm } from './ExternalContentForm'
 import { QuizBuilder } from '@/components/admin/quiz/QuizBuilder'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHelp } from '@/components/common/PageHelp'
+import { TagInput } from '@/components/common/TagInput'
 import type { ContentBlock, ExternalContentType, ModuleContentType } from '@/types/domain'
 
 interface FormState {
@@ -25,6 +26,7 @@ interface FormState {
   renewalMonths: string
   passingScore: string
   isPublished: boolean
+  topics: string[]
 }
 
 const EMPTY_FORM: FormState = {
@@ -37,6 +39,7 @@ const EMPTY_FORM: FormState = {
   renewalMonths: '',
   passingScore: '80',
   isPublished: false,
+  topics: [],
 }
 
 export function ModuleEditPage() {
@@ -69,6 +72,7 @@ export function ModuleEditPage() {
       renewalMonths: existing.renewal_period_months ? String(existing.renewal_period_months) : '',
       passingScore: String(existing.passing_score_pct),
       isPublished: existing.is_published,
+      topics: existing.topics,
     })
   }
 
@@ -104,6 +108,7 @@ export function ModuleEditPage() {
         renewal_period_months: form.renewalMonths ? Number(form.renewalMonths) : null,
         passing_score_pct: Number(form.passingScore) || 80,
         is_published: publishing,
+        topics: form.topics,
       }
 
       if (isNew) {
@@ -189,6 +194,14 @@ export function ModuleEditPage() {
                     placeholder="e.g. 12"
                   />
                 </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label>Topics</Label>
+                <TagInput tags={form.topics} onChange={(topics) => set('topics', topics)} />
+                <p className="text-xs text-slate-400">
+                  Tag this module so it's easier to find by topic on the Modules and Assignments pages.
+                </p>
               </div>
 
               <div className="flex flex-col gap-1.5">
