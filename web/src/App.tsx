@@ -9,12 +9,11 @@ import { ProtectedRoute, AdminRoute } from '@/components/auth/ProtectedRoute'
 import { AppShell } from '@/components/shell/AppShell'
 import { EmployeeDashboardPage } from '@/components/employee/EmployeeDashboardPage'
 import { TrainingPlayerPage } from '@/components/player/TrainingPlayerPage'
-import { AdminOverviewPage } from '@/components/admin/AdminOverviewPage'
+import { DashboardPage } from '@/components/admin/DashboardPage'
 import { ModuleListPage } from '@/components/admin/modules/ModuleListPage'
 import { ModuleEditPage } from '@/components/admin/modules/ModuleEditPage'
 import { AssignmentsPage } from '@/components/admin/assignments/AssignmentsPage'
 import { UsersPage } from '@/components/admin/users/UsersPage'
-import { ReportsPage } from '@/components/admin/reports/ReportsPage'
 
 function App() {
   const initialize = useAuthStore((s) => s.initialize)
@@ -36,13 +35,12 @@ function App() {
               <Route path="/training/:assignmentId" element={<TrainingPlayerPage />} />
 
               <Route element={<AdminRoute />}>
-                <Route path="/admin" element={<AdminOverviewPage />} />
+                <Route path="/admin" element={<DashboardPage />} />
                 <Route path="/admin/modules" element={<ModuleListPage />} />
                 <Route path="/admin/modules/new" element={<ModuleEditPage />} />
                 <Route path="/admin/modules/:moduleId" element={<ModuleEditPage />} />
                 <Route path="/admin/assignments" element={<AssignmentsPage />} />
                 <Route path="/admin/users" element={<UsersPage />} />
-                <Route path="/admin/reports" element={<ReportsPage />} />
               </Route>
             </Route>
           </Route>

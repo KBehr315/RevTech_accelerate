@@ -1,16 +1,15 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { GraduationCap, LayoutDashboard, LogOut, ClipboardList, Users, BookOpen, BarChart3 } from 'lucide-react'
+import { GraduationCap, LayoutDashboard, LogOut, ClipboardList, Users, BookOpen } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { cn, initials } from '@/lib/utils'
 
 const EMPLOYEE_LINKS = [{ to: '/', label: 'My Training', icon: GraduationCap, end: true }]
 
 const ADMIN_LINKS = [
-  { to: '/admin', label: 'Overview', icon: LayoutDashboard, end: true },
+  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/modules', label: 'Modules', icon: BookOpen, end: false },
   { to: '/admin/assignments', label: 'Assignments', icon: ClipboardList, end: false },
   { to: '/admin/users', label: 'Employees', icon: Users, end: false },
-  { to: '/admin/reports', label: 'Compliance Reports', icon: BarChart3, end: false },
 ]
 
 export function AppShell() {
