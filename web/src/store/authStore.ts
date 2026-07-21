@@ -9,7 +9,7 @@ interface AuthState {
   loading: boolean
   error: string | null
   initialize: () => Promise<void>
-  signInWithAzure: () => Promise<void>
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }
 
@@ -40,16 +40,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     })
   },
 
-  signInWithAzure: async () => {
+  signIn: async (email, password) => {
     set({ error: null })
-    // Full-page redirect to Microsoft — there's no immediate success/failure
-    // to return here. Supabase picks the session up automatically once the
-    // browser lands back on this app, via the onAuthStateChange listener above.
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'azure',
-      options: { scopes: 'openid profile email' },
-    })
-    if (error) set({ error: error.message })
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      set({ error: error.message })
+      return { error: error.message }
+    }
+    return { error: null }
   },
 
   signOut: async () => {

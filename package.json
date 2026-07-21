@@ -1,0 +1,12 @@
+{
+  "name": "compliance-lms",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Serverless functions for the Compliance LMS (Vercel deploys web/ as the frontend and api/ as these functions).",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.5"
+  },
+  "devDependencies": {
+    "@vercel/node": "^5.8.24"
+  }
+}

@@ -1,4 +1,4 @@
-import { MicrosoftSignInButton } from './MicrosoftSignInButton'
+import { LoginForm } from './LoginForm'
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
 
 export function LoginPage() {
@@ -7,10 +7,10 @@ export function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
           <img src="/revtech-logo.png" alt="RevTech" className="mb-2 h-10 w-auto" />
-          <CardDescription>Sign in with your RevTech Microsoft account.</CardDescription>
+          <CardDescription>Sign in with the account your admin set up for you.</CardDescription>
         </CardHeader>
         <CardContent>
-          <MicrosoftSignInButton />
+          <LoginForm />
         </CardContent>
       </Card>
     </div>

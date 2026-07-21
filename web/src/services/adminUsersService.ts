@@ -16,3 +16,23 @@ export async function setProfileRole(id: string, role: Role): Promise<void> {
   const { error } = await supabase.from('profiles').update({ role }).eq('id', id)
   if (error) throw error
 }
+
+export async function inviteEmployee(input: { email: string; full_name: string }): Promise<{ user_id: string }> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  if (!session) throw new Error('Not signed in')
+
+  const res = await fetch('/api/invite-employee', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify(input),
+  })
+
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error ?? 'Failed to invite employee')
+  return body as { user_id: string }
+}

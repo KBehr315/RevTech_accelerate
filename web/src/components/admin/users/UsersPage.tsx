@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useProfiles, useSetProfileActive, useSetProfileRole } from '@/hooks/useProfiles'
 import { useAuthStore } from '@/store/authStore'
 import { PageHelp } from '@/components/common/PageHelp'
+import { UserInviteDialog } from './UserInviteDialog'
 import { GroupsPanel } from './GroupsPanel'
 
 export function UsersPage() {
@@ -35,11 +36,12 @@ export function UsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-slate-900">Employees</h1>
-          <p className="text-sm text-slate-500">
-            Employees appear here automatically the first time they sign in with Microsoft. Manage admin access below.
-          </p>
+          <p className="text-sm text-slate-500">Invite employees and manage admin access.</p>
         </div>
-        <PageHelp helpKey="admin-users" />
+        <div className="flex items-center gap-2">
+          <UserInviteDialog />
+          <PageHelp helpKey="admin-users" />
+        </div>
       </div>
 
       <GroupsPanel />

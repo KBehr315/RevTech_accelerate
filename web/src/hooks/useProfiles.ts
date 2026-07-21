@@ -6,6 +6,14 @@ export function useProfiles() {
   return useQuery({ queryKey: ['profiles'], queryFn: adminUsersService.listProfiles })
 }
 
+export function useInviteEmployee() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: adminUsersService.inviteEmployee,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profiles'] }),
+  })
+}
+
 export function useSetProfileActive() {
   const queryClient = useQueryClient()
   return useMutation({
