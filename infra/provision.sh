@@ -42,7 +42,9 @@ PGRST_APP=ca-accelerate-pgrst-preview
 JOB=caj-accelerate-migrate
 IDENTITY=id-accelerate-preview
 DEPLOY_IDENTITY=id-accelerate-deploy
-GITHUB_REPO=KBehr315/RevTech_accelerate
+# GitHub puts the owner and repo ids in the OIDC subject, so a renamed or
+# recreated repo with the same name is not trusted.
+GITHUB_REPO="KBehr315@274071871/RevTech_accelerate@1302924751"
 IMAGE="$ACR.azurecr.io/accelerate:${IMAGE_TAG:-initial}"
 TENANT_ID=c0fdfbc6-f518-47f4-9e98-5517a1259553
 CLIENT_ID=$(grep VITE_AZURE_CLIENT_ID "$(dirname "$0")/../web/.env.production" | cut -d= -f2 | tr -d '\r')
