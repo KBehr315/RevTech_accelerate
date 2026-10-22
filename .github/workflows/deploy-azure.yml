@@ -3,7 +3,7 @@ name: Deploy to Azure Container Apps
 on:
   push:
     branches:
-      - main
+      - master
   workflow_dispatch:
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 # None of these are secrets. The login is a federated credential on
-# id-accelerate-deploy that only trusts this repo's main branch (infra/provision.sh).
+# id-accelerate-deploy that only trusts this repo's master branch (infra/provision.sh).
 env:
   AZURE_CLIENT_ID: DEPLOY_IDENTITY_CLIENT_ID   # id-accelerate-deploy; set by infra/provision.sh output
   AZURE_TENANT_ID: c0fdfbc6-f518-47f4-9e98-5517a1259553

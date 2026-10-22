@@ -143,10 +143,10 @@ APP_FQDN=$(az containerapp show -g "$RG" -n "$APP" --query properties.configurat
 echo "== GitHub Actions deploy identity (OIDC, no stored secret)"
 az identity create -g "$RG" -n "$DEPLOY_IDENTITY" -o none
 DEPLOY_PRINCIPAL=$(az identity show -g "$RG" -n "$DEPLOY_IDENTITY" --query principalId -o tsv)
-if [ -z "$(az identity federated-credential list -g "$RG" --identity-name "$DEPLOY_IDENTITY" --query "[?name=='github-main'].name" -o tsv)" ]; then
-  az identity federated-credential create -g "$RG" --identity-name "$DEPLOY_IDENTITY" -n github-main \
+if [ -z "$(az identity federated-credential list -g "$RG" --identity-name "$DEPLOY_IDENTITY" --query "[?name=='github-master'].name" -o tsv)" ]; then
+  az identity federated-credential create -g "$RG" --identity-name "$DEPLOY_IDENTITY" -n github-master \
     --issuer https://token.actions.githubusercontent.com --audiences api://AzureADTokenExchange \
-    --subject "repo:$GITHUB_REPO:ref:refs/heads/main" -o none
+    --subject "repo:$GITHUB_REPO:ref:refs/heads/master" -o none
 fi
 assign "Container Registry Tasks Contributor" "$DEPLOY_PRINCIPAL" "$ACR_ID"
 assign "Container Apps Contributor" "$DEPLOY_PRINCIPAL" "/subscriptions/$SUB_ID/resourceGroups/$RG"

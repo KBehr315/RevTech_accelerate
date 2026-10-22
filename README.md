@@ -47,11 +47,11 @@ others from **Employees**. Deactivated employees can't sign in.
 
 ## Deploying
 
-Every push to `main` runs `.github/workflows/deploy-azure.yml`: it builds the
+Every push to `master` runs `.github/workflows/deploy-azure.yml`: it builds the
 image in the registry, runs the migrations job, then rolls the app onto the new
 image. The Azure ids in the workflow are not secrets; the login works through a
 federated credential on `id-accelerate-deploy` trusted only for this repo's
-`main` branch.
+`master` branch.
 
 ## Local development
 
