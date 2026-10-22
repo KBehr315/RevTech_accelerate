@@ -2,11 +2,18 @@
   "name": "compliance-lms",
   "private": true,
   "version": "0.0.0",
-  "description": "Serverless functions for the Compliance LMS (Vercel deploys web/ as the frontend and api/ as these functions).",
-  "dependencies": {
-    "@supabase/supabase-js": "^2.110.5"
+  "type": "module",
+  "description": "API server for the Compliance LMS: serves web/dist, verifies Microsoft sign-in, and forwards database requests to PostgREST.",
+  "scripts": {
+    "start": "node server/index.js",
+    "migrate": "node server/migrate.js"
   },
-  "devDependencies": {
-    "@vercel/node": "^5.8.24"
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "jose": "^6.1.0",
+    "pg": "^8.16.3"
   }
 }

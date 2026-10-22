@@ -127,8 +127,9 @@ export const HELP_CONTENT = {
     body: (
       <>
         <p>
-          Invite employees, promote or demote admins, and deactivate accounts. Deactivated employees keep their
-          training history but can't sign in.
+          Employees appear here the first time they sign in with their RevTech Microsoft account; there's no invite
+          step. Promote or demote admins and deactivate accounts here. Deactivated employees keep their training
+          history but can't sign in.
         </p>
         <p>
           Use Employee Groups to organize people (e.g. by team) so you can batch-assign training to everyone in a
