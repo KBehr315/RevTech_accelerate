@@ -12,6 +12,14 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    // There is no local database: /api goes to the deployed server, which accepts
+    // a localhost sign-in because http://localhost:3000/ is a registered redirect URI.
+    proxy: {
+      '/api': {
+        target: process.env.API_PROXY_TARGET ?? 'https://accelerate.revtech.consulting',
+        changeOrigin: true,
+      },
+    },
   },
   test: {
     globals: true,

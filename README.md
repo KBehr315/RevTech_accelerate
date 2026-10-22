@@ -5,58 +5,55 @@ organization. Employees see what's assigned to them, their score history, and
 when each training needs to be renewed. Admins author or link training content,
 attach a quiz, and assign it to employees.
 
+Live at https://accelerate.revtech.consulting (Azure, Operations Applications subscription).
+
 ## Stack
 
-- `web/` — React 19 + Vite + TypeScript + Tailwind + Supabase (frontend)
-- `api/` — Vercel serverless functions (admin-only operations that need the
-  Supabase service-role key, currently just employee invites)
-- `supabase/migrations/` — SQL schema, RLS policies, and scoring RPCs
+- `web/` — React 19 + Vite + TypeScript + Tailwind (frontend). Signs in with
+  Microsoft (MSAL) and queries the database with `@supabase/postgrest-js`.
+- `server/` — Express server that serves `web/dist` and the API. It verifies the
+  caller's Microsoft ID token, then forwards database requests to PostgREST with
+  a short-lived JWT naming the caller's profile, so the RLS policies decide what
+  they can see. `server/migrate.js` applies the migrations.
+- `db/migrations/` — SQL schema, RLS policies, and scoring RPCs, applied in
+  filename order. `00000` recreates the few Supabase built-ins (`auth.users`,
+  `auth.uid()`, the `authenticated` role) that `00001`–`00005` were written against.
+- `infra/provision.sh` — one-time Azure setup. Deploys after that are the
+  GitHub Actions workflow.
 
-## First-time setup
+## How it runs in Azure
 
-### 1. Create a Supabase project
+The same layout as RevelationHub, sharing its Container Apps environment,
+Postgres server and container registry in `rg-revhub-preview`. Everything this
+app owns is in `rg-accelerate-preview`.
 
-Create a new project at [supabase.com](https://supabase.com), then grab from
-**Settings → API**:
-- Project URL
-- `anon` public key
-- `service_role` secret key (server-only, never put this in the frontend)
+| Resource | What it is |
+|---|---|
+| `ca-accelerate-preview` | This repo's image: frontend + API. The only public entry point. |
+| `ca-accelerate-pgrst-preview` | PostgREST, internal ingress only. Rejects requests without a JWT signed by the API server. |
+| `caj-accelerate-migrate` | Container Apps job running `node server/migrate.js` from the same image. |
+| `psql-revhub-preview-ad4fad06` / `accelerate` | The database, on RevelationHub's Postgres server (private network only). |
+| `kv-accelerate-0ae49a` | Secrets: PostgREST JWT secret and connection strings. |
+| `id-accelerate-preview` | Managed identity the apps use for Key Vault and image pulls. |
+| `id-accelerate-deploy` | Identity GitHub Actions signs in as (OIDC, no stored secret). |
+| Entra app "RevTech Accelerate" | Sign-in. Client id is in `web/.env.production`. |
 
-### 2. Run the migrations
+## Signing in and admins
 
-Open the Supabase SQL editor and run, in order:
-1. `supabase/migrations/00001_initial_schema.sql`
-2. `supabase/migrations/00002_rls_policies.sql`
+Anyone in the RevTech tenant can sign in with their Microsoft account. The first
+sign-in creates an employee profile; there is no invite step. Ryan Euler and
+Kelly Behringer are seeded as admins by `00006_entra_sign_in.sql` and can promote
+others from **Employees**. Deactivated employees can't sign in.
 
-### 3. Configure environment variables
+## Deploying
 
-```bash
-cp web/.env.example web/.env
-# fill in VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+Every push to `master` runs `.github/workflows/deploy-azure.yml`: it builds the
+image in the registry, runs the migrations job, then rolls the app onto the new
+image. The Azure ids in the workflow are not secrets; the login works through a
+federated credential on `id-accelerate-deploy` trusted only for this repo's
+`master` branch.
 
-cp .env.example .env
-# fill in SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
-# (these three also need to be set in the Vercel project's env vars once deployed)
-```
-
-### 4. Create the first admin
-
-There's a chicken-and-egg problem: only admins can invite employees through the
-app, so the very first admin has to be created directly:
-
-1. In the Supabase dashboard, go to **Authentication → Users → Add user** and
-   create an account for yourself (email + password). This fires a trigger
-   that auto-creates a matching `profiles` row with `role = 'employee'`.
-2. In the SQL editor, promote yourself:
-   ```sql
-   update public.profiles set role = 'admin' where email = 'you@company.com';
-   ```
-3. Sign in at `/login` with that account — you'll land in the admin dashboard.
-
-From here on, invite every other employee (admins included) through
-**Employees → Invite Employee** in the app.
-
-### 5. Install and run
+## Local development
 
 ```bash
 cd web
@@ -64,19 +61,9 @@ npm install
 npm run dev
 ```
 
-The invite-employee flow calls `/api/invite-employee`, which only exists when
-running through Vercel. For local testing of that specific feature, use
-`vercel dev` from the repo root instead of `npm run dev`; for everything else
-(modules, quizzes, assignments, reports), `npm run dev` in `web/` is enough.
-
-## Deploying
-
-This repo is one Vercel project: `vercel.json` builds `web/` as the static
-frontend (`web/dist`) and auto-detects `api/*.ts` as serverless functions. Set
-`SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in the
-Vercel project's environment variables (the service role key must be a
-**server-only** env var, not one prefixed `VITE_`), plus `VITE_SUPABASE_URL`
-and `VITE_SUPABASE_ANON_KEY` for the frontend build.
+There is no local database. The dev server proxies `/api` to the deployed app
+(set `API_PROXY_TARGET` to point it elsewhere), and you sign in with your own
+Microsoft account, so you see what you'd see in production.
 
 ## What's deliberately not in v1
 

@@ -1,57 +1,57 @@
 import { create } from 'zustand'
-import type { Session } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import type { AccountInfo } from '@azure/msal-browser'
+import { msalReady, signIn as msalSignIn, signOut as msalSignOut } from '@/lib/msal'
+import { apiFetch } from '@/lib/db'
 import type { Profile } from '@/types/domain'
 
 interface AuthState {
-  session: Session | null
+  account: AccountInfo | null
   profile: Profile | null
   loading: boolean
   error: string | null
   initialize: () => Promise<void>
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>
+  signIn: () => Promise<void>
   signOut: () => Promise<void>
 }
 
-async function fetchProfile(userId: string): Promise<Profile | null> {
-  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
-  if (error) {
-    console.error('Failed to load profile', error)
-    return null
-  }
-  return data as Profile
+/** The caller's profile; the server creates it the first time someone signs in. */
+async function fetchProfile(): Promise<Profile> {
+  const res = await apiFetch('/api/me')
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(body.message ?? 'Could not load your profile.')
+  return body as Profile
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  session: null,
+  account: null,
   profile: null,
   loading: true,
   error: null,
 
   initialize: async () => {
-    const { data } = await supabase.auth.getSession()
-    const session = data.session
-    const profile = session ? await fetchProfile(session.user.id) : null
-    set({ session, profile, loading: false })
-
-    supabase.auth.onAuthStateChange(async (_event, nextSession) => {
-      const nextProfile = nextSession ? await fetchProfile(nextSession.user.id) : null
-      set({ session: nextSession, profile: nextProfile })
-    })
+    try {
+      const account = await msalReady()
+      const profile = account ? await fetchProfile() : null
+      set({ account, profile, loading: false })
+    } catch (err) {
+      // Signed in with Microsoft but refused by the server (e.g. deactivated):
+      // back to the sign-in page, with the reason.
+      set({ account: null, profile: null, loading: false, error: (err as Error).message })
+    }
   },
 
-  signIn: async (email, password) => {
+  // Full-page redirect to Microsoft; initialize() picks the account up on return.
+  signIn: async () => {
     set({ error: null })
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      set({ error: error.message })
-      return { error: error.message }
+    try {
+      await msalSignIn()
+    } catch (err) {
+      set({ error: (err as Error).message })
     }
-    return { error: null }
   },
 
   signOut: async () => {
-    await supabase.auth.signOut()
-    set({ session: null, profile: null })
+    set({ account: null, profile: null })
+    await msalSignOut()
   },
 }))

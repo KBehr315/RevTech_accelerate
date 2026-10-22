@@ -1,0 +1,68 @@
+name: Deploy to Azure Container Apps
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # OIDC login to Azure
+  contents: read
+
+# None of these are secrets. The login is a federated credential on
+# id-accelerate-deploy that only trusts this repo's master branch (infra/provision.sh).
+env:
+  AZURE_CLIENT_ID: b050ac37-95ec-493c-9e04-2fee6bb941f9   # id-accelerate-deploy
+  AZURE_TENANT_ID: c0fdfbc6-f518-47f4-9e98-5517a1259553
+  AZURE_SUBSCRIPTION_ID: 0ae49a29-0628-4e2e-a0ae-c1102ffd2e02   # Operations Applications
+  RESOURCE_GROUP: rg-accelerate-preview
+  REGISTRY: acrrevhubpreviewad4fad06
+  REGISTRY_RESOURCE_GROUP: rg-revhub-preview
+  CONTAINER_APP: ca-accelerate-preview
+  MIGRATE_JOB: caj-accelerate-migrate
+  IMAGE_NAME: accelerate
+
+concurrency:
+  group: deploy-azure
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push image
+        run: |
+          IMAGE="$REGISTRY.azurecr.io/$IMAGE_NAME:gh-${GITHUB_SHA::7}"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          az acr build --resource-group "$REGISTRY_RESOURCE_GROUP" --registry "$REGISTRY" \
+            --image "$IMAGE_NAME:gh-${GITHUB_SHA::7}" .
+
+      # Before the app update, so a new revision never runs against an old schema.
+      - name: Run migrations
+        run: |
+          az containerapp job update -g "$RESOURCE_GROUP" -n "$MIGRATE_JOB" --image "$IMAGE" -o none
+          EXECUTION=$(az containerapp job start -g "$RESOURCE_GROUP" -n "$MIGRATE_JOB" --query name -o tsv)
+          for _ in $(seq 60); do
+            STATUS=$(az containerapp job execution show -g "$RESOURCE_GROUP" -n "$MIGRATE_JOB" \
+              --job-execution-name "$EXECUTION" --query properties.status -o tsv)
+            case "$STATUS" in Running|Processing|"") sleep 10 ;; *) break ;; esac
+          done
+          echo "Migrations: $STATUS"
+          [ "$STATUS" = Succeeded ]
+
+      - name: Deploy new image
+        run: az containerapp update -g "$RESOURCE_GROUP" -n "$CONTAINER_APP" --image "$IMAGE" -o none
+
+      - name: Azure logout
+        if: always()
+        run: az logout
