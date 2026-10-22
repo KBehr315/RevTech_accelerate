@@ -13,7 +13,7 @@ permissions:
 # None of these are secrets. The login is a federated credential on
 # id-accelerate-deploy that only trusts this repo's master branch (infra/provision.sh).
 env:
-  AZURE_CLIENT_ID: DEPLOY_IDENTITY_CLIENT_ID   # id-accelerate-deploy; set by infra/provision.sh output
+  AZURE_CLIENT_ID: b050ac37-95ec-493c-9e04-2fee6bb941f9   # id-accelerate-deploy
   AZURE_TENANT_ID: c0fdfbc6-f518-47f4-9e98-5517a1259553
   AZURE_SUBSCRIPTION_ID: 0ae49a29-0628-4e2e-a0ae-c1102ffd2e02   # Operations Applications
   RESOURCE_GROUP: rg-accelerate-preview

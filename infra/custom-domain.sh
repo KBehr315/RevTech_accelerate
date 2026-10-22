@@ -5,6 +5,7 @@
 
 set -euo pipefail
 az() { command az "$@" | tr -d '\r'; }
+export MSYS_NO_PATHCONV=1   # keep Git Bash from rewriting resource ids as Windows paths
 
 az account set --subscription "Operations Applications"
 RG=rg-accelerate-preview

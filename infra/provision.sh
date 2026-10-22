@@ -22,6 +22,10 @@ set -euo pipefail
 # The Windows build of the az CLI ends tsv lines with \r, which breaks every
 # $(...) below when this runs from Git Bash.
 az() { command az "$@" | tr -d '\r'; }
+# Git Bash also rewrites arguments that start with / (resource ids) into Windows paths.
+export MSYS_NO_PATHCONV=1
+# The Windows az CLI crashes echoing non-ASCII build output (e.g. Vite's check marks).
+export PYTHONIOENCODING=utf-8
 
 SUB="Operations Applications"
 LOCATION=westus3
@@ -50,9 +54,9 @@ ACR_ID=$(az acr show -n "$ACR" --query id -o tsv)
 PG_FQDN=$(az postgres flexible-server show -g "$SHARED_RG" -n "$PG_SERVER" --query fullyQualifiedDomainName -o tsv)
 PG_ADMIN=$(az postgres flexible-server show -g "$SHARED_RG" -n "$PG_SERVER" --query administratorLogin -o tsv)
 
-assign() { # role, assignee principal id, scope
+assign() { # role, assignee principal id, scope, [principal type]
   if [ -z "$(az role assignment list --assignee "$2" --role "$1" --scope "$3" --query '[0].id' -o tsv)" ]; then
-    az role assignment create --role "$1" --assignee-object-id "$2" --assignee-principal-type ServicePrincipal --scope "$3" -o none
+    az role assignment create --role "$1" --assignee-object-id "$2" --assignee-principal-type "${4:-ServicePrincipal}" --scope "$3" -o none
   fi
 }
 random_secret() { node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"; }
@@ -67,12 +71,12 @@ if ! az keyvault show -n "$KV" -o none 2>/dev/null; then
   az keyvault create -g "$RG" -n "$KV" -l "$LOCATION" --enable-rbac-authorization true -o none
 fi
 KV_ID=$(az keyvault show -n "$KV" --query id -o tsv)
-assign "Key Vault Secrets Officer" "$(az ad signed-in-user show --query id -o tsv)" "$KV_ID"
+assign "Key Vault Secrets Officer" "$(az ad signed-in-user show --query id -o tsv)" "$KV_ID" User
 assign "Key Vault Secrets User" "$IDENTITY_PRINCIPAL" "$KV_ID"
 assign "AcrPull" "$IDENTITY_PRINCIPAL" "$ACR_ID"
 
 echo "== database"
-az postgres flexible-server db create -g "$SHARED_RG" -s "$PG_SERVER" -d "$DB" -o none
+az postgres flexible-server db create -g "$SHARED_RG" -s "$PG_SERVER" -n "$DB" -o none
 # 00001 creates pgcrypto; Azure only allows extensions on this list.
 EXTENSIONS=$(az postgres flexible-server parameter show -g "$SHARED_RG" -s "$PG_SERVER" -n azure.extensions --query value -o tsv)
 if ! echo ",$EXTENSIONS," | grep -qi ",pgcrypto,"; then
@@ -81,6 +85,8 @@ if ! echo ",$EXTENSIONS," | grep -qi ",pgcrypto,"; then
 fi
 
 echo "== secrets"
+# A new role assignment takes a minute or two to reach Key Vault.
+for _ in $(seq 30); do az keyvault secret list --vault-name "$KV" -o none 2>/dev/null && break; sleep 10; done
 for name in pgrst-jwt-secret authenticator-password; do
   kv_secret_missing "$name" && az keyvault secret set --vault-name "$KV" -n "$name" --value "$(random_secret)" -o none
 done
@@ -122,7 +128,7 @@ echo "== PostgREST"
 if ! az containerapp show -g "$RG" -n "$PGRST_APP" -o none 2>/dev/null; then
   az containerapp create -g "$RG" -n "$PGRST_APP" --environment "$ENV_ID" \
     --image postgrest/postgrest:v12.2.3 --ingress internal --target-port 3000 \
-    --mi-user-assigned "$IDENTITY_ID" --cpu 0.25 --memory 0.5Gi --min-replicas 1 --max-replicas 2 \
+    --user-assigned "$IDENTITY_ID" --cpu 0.25 --memory 0.5Gi --min-replicas 1 --max-replicas 2 \
     --secrets "pgrst-db-uri=$(kvref pgrst-db-uri)" "pgrst-jwt-secret=$(kvref pgrst-jwt-secret)" \
     --env-vars PGRST_DB_URI=secretref:pgrst-db-uri PGRST_JWT_SECRET=secretref:pgrst-jwt-secret \
       PGRST_DB_SCHEMAS=public PGRST_SERVER_PORT=3000 -o none
@@ -132,7 +138,7 @@ echo "== app"
 if ! az containerapp show -g "$RG" -n "$APP" -o none 2>/dev/null; then
   az containerapp create -g "$RG" -n "$APP" --environment "$ENV_ID" \
     --image "$IMAGE" --registry-server "$ACR.azurecr.io" --registry-identity "$IDENTITY_ID" \
-    --mi-user-assigned "$IDENTITY_ID" --ingress external --target-port 8080 \
+    --user-assigned "$IDENTITY_ID" --ingress external --target-port 8080 \
     --cpu 0.25 --memory 0.5Gi --min-replicas 1 --max-replicas 2 \
     --secrets "pgrst-jwt-secret=$(kvref pgrst-jwt-secret)" \
     --env-vars AZURE_TENANT_ID="$TENANT_ID" AZURE_CLIENT_ID="$CLIENT_ID" \
