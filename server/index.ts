@@ -2,13 +2,13 @@
 // arrangement as RevelationHub's ca-revhub-api-preview.
 //
 //   GET  /api/me     the caller's profile, created on first sign-in
-//   *    /api/db/*   forwarded to PostgREST as the caller (see server/auth.js)
+//   *    /api/db/*   forwarded to PostgREST as the caller (see server/auth.ts)
 //   GET  /healthz    liveness probe
 
-import express from 'express';
+import express, { type Response } from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { callerProfile, missingEnv, postgrestToken, PGRST_URL } from './auth.js';
+import { callerProfile, missingEnv, postgrestToken, PGRST_URL, type HttpError } from './auth.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, '..', 'web', 'dist');
@@ -17,7 +17,7 @@ const DIST = path.join(__dirname, '..', 'web', 'dist');
 const FORWARD_REQUEST_HEADERS = ['accept', 'content-type', 'prefer', 'range', 'range-unit'];
 const FORWARD_RESPONSE_HEADERS = ['content-type', 'content-range', 'preference-applied', 'location'];
 
-function sendError(res, err) {
+function sendError(res: Response, err: Partial<HttpError>) {
   if (!err.status) console.error(err);
   res.status(err.status || 500).json({ message: err.status ? err.message : 'Unexpected server error.' });
 }
@@ -37,7 +37,7 @@ app.get('/api/me', async (req, res) => {
   try {
     res.json(await callerProfile(req.headers.authorization, { fresh: true }));
   } catch (err) {
-    sendError(res, err);
+    sendError(res, err as HttpError);
   }
 });
 
@@ -47,9 +47,10 @@ app.use('/api/db', express.raw({ type: () => true, limit: '5mb' }), async (req, 
     if (req.path === '/') return res.status(404).json({ message: 'Not found.' });
 
     const profile = await callerProfile(req.headers.authorization);
-    const headers = { Authorization: `Bearer ${await postgrestToken(profile)}` };
+    const headers: Record<string, string> = { Authorization: `Bearer ${await postgrestToken(profile)}` };
     for (const name of FORWARD_REQUEST_HEADERS) {
-      if (req.headers[name]) headers[name] = req.headers[name];
+      const value = req.headers[name];
+      if (typeof value === 'string') headers[name] = value;
     }
 
     const upstream = await fetch(`${PGRST_URL}${req.url}`, {
@@ -65,7 +66,7 @@ app.use('/api/db', express.raw({ type: () => true, limit: '5mb' }), async (req, 
     }
     res.send(Buffer.from(await upstream.arrayBuffer()));
   } catch (err) {
-    sendError(res, err);
+    sendError(res, err as HttpError);
   }
 });
 

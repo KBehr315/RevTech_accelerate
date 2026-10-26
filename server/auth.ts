@@ -7,7 +7,24 @@
 // is the same shape Supabase issued, so auth.uid() and every RLS policy in
 // db/migrations work unchanged.
 
-import { createRemoteJWKSet, jwtVerify, SignJWT } from 'jose';
+import { createRemoteJWKSet, jwtVerify, SignJWT, type JWTPayload } from 'jose';
+
+/* public.profiles, as ensure_profile() returns it. */
+export interface Profile {
+  id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  is_guest: boolean;
+}
+
+interface Caller {
+  email: string;
+  name: string;
+  isGuest: boolean;
+}
+
+export type HttpError = Error & { status: number };
 
 const TENANT_ID = process.env.AZURE_TENANT_ID;
 const CLIENT_ID = process.env.AZURE_CLIENT_ID;
@@ -25,9 +42,9 @@ export function missingEnv() {
   }).filter(([, value]) => !value).map(([name]) => name);
 }
 
-export const httpError = (status, message) => Object.assign(new Error(message), { status });
+export const httpError = (status: number, message: string): HttpError => Object.assign(new Error(message), { status });
 
-let _jwks = null;
+let _jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 function jwks() {
   if (!_jwks) {
     _jwks = createRemoteJWKSet(new URL(`https://login.microsoftonline.com/${TENANT_ID}/discovery/v2.0/keys`));
@@ -38,7 +55,7 @@ function jwks() {
 /* The caller's email, display name and guest status, from a verified Microsoft ID token.
    Client users are B2B guests in the RevTech tenant, so their tokens come from the
    same issuer as staff tokens; `idp` names their home tenant instead. */
-async function verifyCaller(authHeader) {
+async function verifyCaller(authHeader: string | undefined): Promise<Caller> {
   const token = /^Bearer\s+(.+)$/i.exec(authHeader || '')?.[1];
   if (!token) throw httpError(401, 'Missing bearer token.');
 
@@ -63,7 +80,7 @@ async function verifyCaller(authHeader) {
   return { email, name: String(payload.name || '').trim(), isGuest };
 }
 
-async function mintToken(claims) {
+async function mintToken(claims: JWTPayload): Promise<string> {
   return new SignJWT(claims)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -72,7 +89,7 @@ async function mintToken(claims) {
 }
 
 /* ensure_profile() is executable only by service_role (see 00100). */
-async function ensureProfile({ email, name, isGuest }) {
+async function ensureProfile({ email, name, isGuest }: Caller): Promise<Profile> {
   const res = await fetch(`${PGRST_URL}/rpc/ensure_profile`, {
     method: 'POST',
     headers: {
@@ -92,10 +109,10 @@ async function ensureProfile({ email, name, isGuest }) {
    and memberships themselves, so deactivation and role changes take effect there
    immediately; this cache only delays the friendlier "deactivated" message. */
 const PROFILE_TTL_MS = 60_000;
-const _profiles = new Map();
+const _profiles = new Map<string, { profile: Profile; at: number }>();
 
 /* Verified caller -> their active profile. Throws with a `status`. */
-export async function callerProfile(authHeader, { fresh = false } = {}) {
+export async function callerProfile(authHeader: string | undefined, { fresh = false } = {}): Promise<Profile> {
   const caller = await verifyCaller(authHeader);
   const cached = _profiles.get(caller.email);
   let profile = !fresh && cached && Date.now() - cached.at < PROFILE_TTL_MS ? cached.profile : null;
@@ -108,6 +125,6 @@ export async function callerProfile(authHeader, { fresh = false } = {}) {
   return profile;
 }
 
-export function postgrestToken(profile) {
+export function postgrestToken(profile: Profile): Promise<string> {
   return mintToken({ role: 'authenticated', sub: profile.id, email: profile.email });
 }
