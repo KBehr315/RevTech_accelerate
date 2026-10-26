@@ -611,6 +611,29 @@ begin
 end;
 $$;
 
+-- Deactivate or reactivate a person everywhere. Platform Administrators only,
+-- and not themselves. Memberships are kept, so reactivating restores access.
+create or replace function public.set_profile_active(p_profile_id uuid, p_active boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_platform_admin() then
+    raise exception 'Only a Platform Administrator can deactivate people' using errcode = '42501';
+  end if;
+  if p_profile_id = auth.uid() then
+    raise exception 'You cannot deactivate yourself';
+  end if;
+  update public.profiles set is_active = p_active where id = p_profile_id;
+  perform public.record_audit(
+    case when p_active then 'profile.reactivate' else 'profile.deactivate' end,
+    null, 'profile', p_profile_id::text
+  );
+end;
+$$;
+
 -- Create a client workspace. The creator becomes its first Client Training Administrator.
 create or replace function public.create_client(p_name text, p_slug text)
 returns public.clients
@@ -766,6 +789,7 @@ grant execute on function public.ensure_profile(text, text, boolean) to service_
 revoke execute on function public.record_audit(text, uuid, text, text, jsonb) from public, authenticated;
 grant execute on function
   public.set_platform_role(uuid, text, boolean),
+  public.set_profile_active(uuid, boolean),
   public.create_client(text, text),
   public.add_client_member(uuid, text, text, text[]),
   public.set_client_roles(uuid, uuid, text[]),

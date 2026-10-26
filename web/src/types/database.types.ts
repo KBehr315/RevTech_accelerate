@@ -1,254 +1,152 @@
-// Hand-authored to match supabase/migrations/00001_initial_schema.sql and
-// 00002_rls_policies.sql. If the schema changes, update this alongside the
-// migration (or regenerate with `supabase gen types typescript` once the
-// project is linked to a live Supabase project).
+// Hand-authored to match db/migrations/00100_platform_identity_and_tenancy.sql.
+// Update this alongside every migration that changes a table or function the
+// web app uses. Insert/Update list only what callers may actually write: RLS and
+// column grants refuse the rest.
 import type {
-  ExternalContentType,
-  ModuleContent,
-  ModuleContentType,
-  QuestionType,
-  QuizAnswer,
-  QuizOption,
-  Role,
+  AiProvider,
+  AuditEvent,
+  Client,
+  ClientBusinessRole,
+  ClientGroup,
+  ClientGroupMember,
+  ClientMembership,
+  ClientRole,
+  ClientTerm,
+  ClientWorkstream,
+  PlatformRole,
+  PlatformRoleGrant,
+  PlatformSettings,
+  Profile,
 } from './domain'
 
-export interface Database {
+type Relationship = {
+  foreignKeyName: string
+  columns: string[]
+  isOneToOne?: boolean
+  referencedRelation: string
+  referencedColumns: string[]
+}
+
+type Table<Row, Insert = never, Update = never, Rels extends Relationship[] = []> = {
+  Row: Row
+  Insert: Insert
+  Update: Update
+  Relationships: Rels
+}
+
+type ClientOwned<T> = Omit<T, 'id' | 'created_at' | 'updated_at'>
+
+type ClientEditable = Partial<
+  Pick<
+    Client,
+    | 'name'
+    | 'setup_step'
+    | 'industry'
+    | 'govcon_status'
+    | 'sap_landscape'
+    | 'dassian_products'
+    | 'max_classification'
+    | 'allowed_ai_providers'
+    | 'branding'
+    | 'accessibility_requirements'
+    | 'export_control_notes'
+    | 'support_contact'
+    | 'approval_stages'
+  >
+>
+
+export type Database = {
   public: {
     Tables: {
-      profiles: {
-        Row: {
-          id: string
-          email: string
-          full_name: string
-          role: Role
-          is_active: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id: string
-          email: string
-          full_name: string
-          role?: Role
-          is_active?: boolean
-        }
-        Update: {
-          full_name?: string
-          role?: Role
-          is_active?: boolean
-        }
-        Relationships: []
-      }
-      modules: {
-        Row: {
-          id: string
-          title: string
-          description: string | null
-          content_type: ModuleContentType
-          content_blocks: ModuleContent | null
-          external_content_type: ExternalContentType | null
-          external_url: string | null
-          renewal_period_months: number | null
-          passing_score_pct: number
-          is_published: boolean
-          topics: string[]
-          created_by: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          title: string
-          description?: string | null
-          content_type: ModuleContentType
-          content_blocks?: ModuleContent | null
-          external_content_type?: ExternalContentType | null
-          external_url?: string | null
-          renewal_period_months?: number | null
-          passing_score_pct?: number
-          is_published?: boolean
-          topics?: string[]
-          created_by: string
-        }
-        Update: {
-          title?: string
-          description?: string | null
-          content_type?: ModuleContentType
-          content_blocks?: ModuleContent | null
-          external_content_type?: ExternalContentType | null
-          external_url?: string | null
-          renewal_period_months?: number | null
-          passing_score_pct?: number
-          is_published?: boolean
-          topics?: string[]
-        }
-        Relationships: []
-      }
-      quiz_questions: {
-        Row: {
-          id: string
-          module_id: string
-          position: number
-          question_type: QuestionType
-          prompt: string
-          options: QuizOption[]
-          correct_option_ids: string[]
-          points: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          module_id: string
-          position?: number
-          question_type: QuestionType
-          prompt: string
-          options: QuizOption[]
-          correct_option_ids: string[]
-          points?: number
-        }
-        Update: {
-          position?: number
-          question_type?: QuestionType
-          prompt?: string
-          options?: QuizOption[]
-          correct_option_ids?: string[]
-          points?: number
-        }
-        Relationships: []
-      }
-      assignments: {
-        Row: {
-          id: string
-          module_id: string
-          employee_id: string
-          assigned_by: string
-          due_at: string | null
-          is_active: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          module_id: string
-          employee_id: string
-          assigned_by: string
-          due_at?: string | null
-          is_active?: boolean
-        }
-        Update: {
-          due_at?: string | null
-          is_active?: boolean
-        }
-        Relationships: []
-      }
-      attempts: {
-        Row: {
-          id: string
-          assignment_id: string
-          employee_id: string
-          started_at: string
-          completed_at: string | null
-          score_pct: number | null
-          passed: boolean | null
-          answers: QuizAnswer[] | null
-          content_viewed_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        // attempts are only ever written via the RPCs in Functions below —
-        // Record<string, never> (rather than `never`) keeps this a valid
-        // GenericTable shape while still rejecting any insert/update payload.
-        Insert: Record<string, never>
-        Update: Record<string, never>
-        Relationships: []
-      }
-      employee_groups: {
-        Row: {
-          id: string
-          name: string
-          description: string | null
-          created_by: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          description?: string | null
-          created_by: string
-        }
-        Update: {
-          name?: string
-          description?: string | null
-        }
-        Relationships: []
-      }
-      employee_group_members: {
-        Row: {
-          group_id: string
-          employee_id: string
-          added_at: string
-        }
-        Insert: {
-          group_id: string
-          employee_id: string
-        }
-        Update: Record<string, never>
-        Relationships: []
-      }
+      platform_settings: Table<PlatformSettings, never, Pick<PlatformSettings, 'session_idle_minutes'>>
+      profiles: Table<Profile>
+      platform_role_grants: Table<
+        PlatformRoleGrant,
+        never,
+        never,
+        [
+          {
+            foreignKeyName: 'platform_role_grants_profile_id_fkey'
+            columns: ['profile_id']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      >
+      ai_providers: Table<
+        AiProvider,
+        Partial<Omit<AiProvider, 'id' | 'cui_approved' | 'created_at' | 'updated_at'>> & Pick<AiProvider, 'name' | 'kind'>,
+        Partial<Omit<AiProvider, 'id' | 'cui_approved' | 'created_at' | 'updated_at'>>
+      >
+      clients: Table<Client, never, ClientEditable>
+      client_memberships: Table<
+        ClientMembership,
+        never,
+        never,
+        [
+          {
+            foreignKeyName: 'client_memberships_client_id_fkey'
+            columns: ['client_id']
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'client_memberships_profile_id_fkey'
+            columns: ['profile_id']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      >
+      client_workstreams: Table<
+        ClientWorkstream,
+        Pick<ClientWorkstream, 'client_id' | 'code' | 'name'> & Partial<Pick<ClientWorkstream, 'description'>>,
+        Partial<Pick<ClientWorkstream, 'code' | 'name' | 'description'>>
+      >
+      client_business_roles: Table<
+        ClientBusinessRole,
+        Pick<ClientBusinessRole, 'client_id' | 'name'> & Partial<Pick<ClientBusinessRole, 'description' | 'workstream_ids'>>,
+        Partial<Pick<ClientBusinessRole, 'name' | 'description' | 'workstream_ids'>>
+      >
+      client_terms: Table<
+        ClientTerm,
+        Pick<ClientTerm, 'client_id' | 'client_term'> & Partial<Pick<ClientTerm, 'standard_term' | 'definition'>>,
+        Partial<ClientOwned<Omit<ClientTerm, 'client_id'>>>
+      >
+      client_groups: Table<
+        ClientGroup,
+        Pick<ClientGroup, 'name'> & Partial<Pick<ClientGroup, 'description'>>,
+        Partial<Pick<ClientGroup, 'name' | 'description'>>
+      >
+      client_group_members: Table<
+        ClientGroupMember,
+        ClientGroupMember,
+        never,
+        [
+          {
+            foreignKeyName: 'client_group_members_client_id_fkey'
+            columns: ['client_id']
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+        ]
+      >
+      audit_events: Table<AuditEvent>
     }
-    Views: {
-      assignment_status: {
-        Row: {
-          assignment_id: string
-          module_id: string
-          employee_id: string
-          due_at: string | null
-          is_active: boolean
-          module_title: string
-          renewal_period_months: number | null
-          passing_score_pct: number
-          last_attempt_id: string | null
-          last_completed_at: string | null
-          last_score_pct: number | null
-          last_passed: boolean | null
-          attempt_count: number
-          renewal_due_at: string | null
-          is_overdue: boolean
-        }
-        Relationships: []
-      }
-      quiz_questions_public: {
-        Row: {
-          id: string
-          module_id: string
-          position: number
-          question_type: QuestionType
-          prompt: string
-          options: QuizOption[]
-          points: number
-        }
-        Relationships: []
-      }
-    }
+    Views: { [_ in never]: never }
     Functions: {
-      is_admin: {
-        Args: Record<string, never>
-        Returns: boolean
+      is_platform_admin: { Args: Record<string, never>; Returns: boolean }
+      is_global_knowledge_admin: { Args: Record<string, never>; Returns: boolean }
+      client_roles: { Args: { p_client_id: string }; Returns: ClientRole[] }
+      set_platform_role: { Args: { p_profile_id: string; p_role: PlatformRole; p_granted: boolean }; Returns: undefined }
+      set_profile_active: { Args: { p_profile_id: string; p_active: boolean }; Returns: undefined }
+      create_client: { Args: { p_name: string; p_slug: string }; Returns: Client }
+      add_client_member: {
+        Args: { p_client_id: string; p_email: string; p_name: string; p_roles: ClientRole[] }
+        Returns: ClientMembership
       }
-      start_attempt: {
-        Args: { p_assignment_id: string }
-        Returns: Database['public']['Tables']['attempts']['Row']
-      }
-      mark_content_viewed: {
-        Args: { p_attempt_id: string }
-        Returns: Database['public']['Tables']['attempts']['Row']
-      }
-      submit_attempt: {
-        Args: { p_attempt_id: string; p_answers: QuizAnswer[] }
-        Returns: Database['public']['Tables']['attempts']['Row']
-      }
+      set_client_roles: { Args: { p_client_id: string; p_profile_id: string; p_roles: ClientRole[] }; Returns: undefined }
+      activate_client: { Args: { p_client_id: string }; Returns: Client }
     }
   }
 }

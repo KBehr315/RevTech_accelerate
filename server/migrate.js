@@ -41,6 +41,7 @@ async function main() {
     const applied = new Set((await client.query('select name from migrations.applied')).rows.map(r => r.name));
     const files = (await fs.readdir(MIGRATIONS_DIR)).filter(f => f.endsWith('.sql')).sort();
 
+    let ran = 0;
     for (const file of files) {
       if (applied.has(file)) continue;
       const sql = await fs.readFile(path.join(MIGRATIONS_DIR, file), 'utf8');
@@ -50,6 +51,7 @@ async function main() {
         await client.query(sql);
         await client.query('insert into migrations.applied (name) values ($1)', [file]);
         await client.query('commit');
+        ran++;
       } catch (err) {
         await client.query('rollback');
         throw new Error(`${file} failed: ${err.message}`);
@@ -65,7 +67,11 @@ async function main() {
     await client.query(`grant authenticated, service_role to ${AUTHENTICATOR}`);
     await client.query(`grant connect on database ${client.escapeIdentifier((await client.query('select current_database() as db')).rows[0].db)} to ${AUTHENTICATOR}`);
 
-    console.log(`done: ${files.length - applied.size} applied, ${applied.size} already in place`);
+    // PostgREST caches the schema; it listens on this channel and reloads, so
+    // new tables and functions are reachable without restarting it.
+    await client.query(`notify pgrst, 'reload schema'`);
+
+    console.log(`done: ${ran} applied, ${files.length - ran} already in place`);
   } finally {
     await client.end();
   }

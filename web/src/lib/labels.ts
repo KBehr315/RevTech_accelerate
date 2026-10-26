@@ -1,0 +1,100 @@
+import type {
+  AiProviderKind,
+  ApprovalStage,
+  Classification,
+  ClientRole,
+  ClientStatus,
+  GovconStatus,
+  PlatformRole,
+  SetupStep,
+} from '@/types/domain'
+
+export const PLATFORM_ROLE_LABELS: Record<PlatformRole, string> = {
+  platform_admin: 'Platform Administrator',
+  global_knowledge_admin: 'Global Knowledge Administrator',
+  client_creator: 'May create clients',
+}
+
+export const CLIENT_ROLES: ClientRole[] = ['client_training_admin', 'lms_admin', 'contributor', 'reviewer', 'learner']
+
+export const CLIENT_ROLE_LABELS: Record<ClientRole, string> = {
+  client_training_admin: 'Client Training Administrator',
+  lms_admin: 'LMS Administrator',
+  contributor: 'Contributor',
+  reviewer: 'Reviewer',
+  learner: 'Learner',
+}
+
+export const CLIENT_ROLE_DESCRIPTIONS: Record<ClientRole, string> = {
+  client_training_admin: 'Sets up the client, manages members, and generates, approves and publishes training.',
+  lms_admin: 'Manages learners, assignments, due dates and training reports.',
+  contributor: 'Develops and edits the content they are assigned.',
+  reviewer: 'Comments on and approves or rejects assigned content.',
+  learner: 'Takes assigned training.',
+}
+
+export const CLASSIFICATIONS: Classification[] = [
+  'public',
+  'internal',
+  'confidential',
+  'client_confidential',
+  'controlled',
+  'export_controlled',
+]
+
+export const CLASSIFICATION_LABELS: Record<Classification, string> = {
+  public: 'Public',
+  internal: 'Internal',
+  confidential: 'Confidential',
+  client_confidential: 'Client Confidential',
+  controlled: 'Controlled (CUI)',
+  export_controlled: 'Export Controlled',
+}
+
+export function classificationRank(level: Classification): number {
+  return CLASSIFICATIONS.indexOf(level) + 1
+}
+
+export const CLIENT_STATUS_LABELS: Record<ClientStatus, string> = {
+  setup: 'In setup',
+  active: 'Active',
+  archived: 'Archived',
+}
+
+export const SETUP_STEPS: { key: SetupStep; label: string }[] = [
+  { key: 'profile', label: 'Profile' },
+  { key: 'sap_landscape', label: 'SAP landscape' },
+  { key: 'organization', label: 'Organization' },
+  { key: 'branding', label: 'Branding' },
+  { key: 'governance', label: 'Governance' },
+  { key: 'review', label: 'Review' },
+]
+
+export const GOVCON_STATUS_LABELS: Record<GovconStatus, string> = {
+  prime: 'Prime contractor',
+  subcontractor: 'Subcontractor',
+  both: 'Prime and subcontractor',
+  commercial: 'Commercial only',
+}
+
+export const APPROVAL_STAGE_LABELS: Record<ApprovalStage, string> = {
+  contributor: 'Contributor review',
+  sme: 'Subject-matter expert review',
+  client: 'Client review',
+}
+
+export const AI_PROVIDER_KIND_LABELS: Record<AiProviderKind, string> = {
+  anthropic: 'Claude (Anthropic API)',
+  bedrock: 'Claude on AWS Bedrock',
+  azure_openai: 'Azure OpenAI',
+}
+
+/** A URL slug from a client name, in the shape clients.slug accepts. */
+export function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48)
+}

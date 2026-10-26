@@ -7,7 +7,7 @@ export function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
           <img src="/revtech-logo.png" alt="RevTech" className="mb-2 h-10 w-auto" />
-          <CardDescription>Sign in with your RevTech Microsoft account.</CardDescription>
+          <CardDescription>Sign in with your Microsoft account. If RevTech invited you as a guest, use the account the invitation was sent to.</CardDescription>
         </CardHeader>
         <CardContent>
           <MicrosoftSignInButton />

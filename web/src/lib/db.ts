@@ -1,4 +1,4 @@
-import { PostgrestClient } from '@supabase/postgrest-js'
+import { PostgrestClient, type PostgrestError } from '@supabase/postgrest-js'
 import type { Database } from '@/types/database.types'
 import { getIdToken } from '@/lib/msal'
 
@@ -15,3 +15,15 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {})
  * PostgREST, where the RLS policies in db/migrations decide what they can see.
  */
 export const db = new PostgrestClient<Database>(`${window.location.origin}/api/db`, { fetch: apiFetch })
+
+/**
+ * The data from a PostgREST response, or a thrown Error carrying the database's
+ * message. Permission checks in the security-definer functions raise messages
+ * written for people ("You cannot change these roles"), so they're shown as-is.
+ */
+export function unwrap<R extends { data: unknown; error: PostgrestError | null }>(response: R): NonNullable<R['data']> {
+  // Typed from the whole response rather than `data: T | null`: inside a
+  // queryFn, TypeScript would otherwise infer T as null.
+  if (response.error) throw new Error(response.error.message || 'The request failed.')
+  return response.data as NonNullable<R['data']>
+}

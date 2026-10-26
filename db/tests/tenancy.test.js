@@ -159,6 +159,19 @@ describe('platform roles', () => {
     await expect(as(db, p.platformAdmin)(`select set_platform_role($1, 'platform_admin', false)`, [p.platformAdmin])).rejects.toThrow(/your own/);
   });
 
+  it('only platform admins deactivate people, never themselves, and it cuts access immediately', async () => {
+    const someone = await makeProfile(db, 'temp.cta@example.com');
+    await sql(db, `insert into client_memberships (client_id, profile_id, roles) values ($1, $2, '{client_training_admin}')`, [c.A, someone]);
+    expect((await as(db, someone)('select id from client_terms')).length).toBe(1);
+
+    await expect(as(db, p.ctaA)(`select set_profile_active($1, false)`, [someone])).rejects.toThrow(/Only a Platform Administrator/);
+    await expect(as(db, p.platformAdmin)(`select set_profile_active($1, false)`, [p.platformAdmin])).rejects.toThrow(/yourself/);
+    await as(db, p.platformAdmin)(`select set_profile_active($1, false)`, [someone]);
+    expect(await as(db, someone)('select id from client_terms')).toEqual([]);
+    await as(db, p.platformAdmin)(`select set_profile_active($1, true)`, [someone]);
+    expect((await as(db, someone)('select id from client_terms')).length).toBe(1);
+  });
+
   it('platform roles cannot be granted by writing the table directly', async () => {
     await expect(as(db, p.platformAdmin)(`insert into platform_role_grants (profile_id, role) values ($1, 'platform_admin')`, [p.stranger])).rejects.toThrow();
   });

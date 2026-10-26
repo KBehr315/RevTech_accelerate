@@ -28,7 +28,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Nothing deploys unless the isolation tests and checks pass.
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Database and server checks
+        run: |
+          npm ci
+          npm test
+          npm run typecheck
+      - name: Web checks
+        working-directory: web
+        run: |
+          npm ci
+          npm run lint
+          npx tsc -b
+
   build-and-deploy:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -115,6 +115,7 @@ CI gates the deploy: unit + SQL + API tests must pass before the image is built;
 | Builder | One person + Claude Code; no fixed demo date |
 | First AI provider in preview | Claude via the Anthropic API (fictional data only; revisit Bedrock/Azure-hosted Claude before real client data) |
 | Demo client | Fictional "Meridian Aerostructures", FI/CO |
+| Preview deployment | Phase 0 deploys to accelerate.revtech.consulting, replacing the compliance app; its data is dropped without export |
 
 ### Still open, needed by phase
 
