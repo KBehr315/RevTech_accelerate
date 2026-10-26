@@ -8,7 +8,7 @@ Team assumption: **one person directing Claude Code**, no fixed demo date. Estim
 
 | Phase | Scope | Exit demo | Est. weeks |
 |---|---|---|---|
-| **0 · Foundations** | Export and archive compliance data; new identity/tenancy/role schema with RLS and the isolation test harness; server → TypeScript; audit log; Blob storage; worker + pg-boss; model gateway skeleton; Bicep for preview; context switcher and new shell; client setup wizard; fictional Meridian Aerostructures seed | Two demo clients; switching context; proof that one can't see the other | 4–5 |
+| **0 · Foundations** | Export and archive compliance data; new identity/tenancy/role schema with RLS and the isolation test harness; server → TypeScript; audit log; Blob storage; worker + job queue; model gateway skeleton; Bicep for preview; context switcher and new shell; client setup wizard; fictional Meridian Aerostructures seed | Two demo clients; switching context; proof that one can't see the other | 4–5 |
 | **1 · Knowledge** | Upload center, malware scan, classification ceiling, extraction (all MVP formats), chunks + embeddings, duplicate detection, metadata and versions, Global/Shared/Pending libraries, hybrid search, asset drawer | Upload the FI test scripts, see duplicates caught, search with citations | 4–5 |
 | **2 · Generation** | Readiness; pipeline steps; conflict and gap handling with Awaiting User Input; content model; Job Aid, Assessment, HTML course player, PPTX renderers; manifests; progress screen; editing workspace with versions and diffs | Generate all four outputs for "Post a General Journal Entry," resolve a conflict, edit | 7–9 |
 | **3 · Review & publish** | Review workspace, comments, approval rules and gate, accessibility gate, publications, downloads with watermark, Standalone HTML + SCORM 1.2 packages | Approve and publish; SCORM zip runs in SCORM Cloud | 3–4 |
@@ -66,7 +66,7 @@ CI gates the deploy: unit + SQL + API tests must pass before the image is built;
 - Environments and isolation as in [01-architecture.md](01-architecture.md#environments-and-deployment).
 - Bicep templates per environment; GitHub Actions with OIDC deploy to preview from `master`, then to staging and production on a release tag with a manual approval.
 - Migrations run as a job before the app update (as today). Every migration must be backward-compatible with the previous app version, so a rollback is "redeploy the previous image."
-- The worker deploys with the same image; it drains running jobs before shutdown (pg-boss graceful stop).
+- The worker deploys with the same image; it finishes its current job before shutdown, and a job abandoned mid-run is reclaimed after its lock times out.
 - **Before any real client data:** production on its own Postgres server and storage account, Conditional Access MFA confirmed for guests, backups restore-tested, and a security review completed.
 
 ## Risk register

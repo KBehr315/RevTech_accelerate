@@ -132,7 +132,7 @@ erDiagram
 | `ai_calls` | Per call: provider, model, job, tokens, latency, classification ceiling checked, outcome. Prompt/response bodies stored with the owning job under the client's RLS. |
 | `notifications` | In-app notifications (review assigned, comment on my work, job awaiting input, change impact). |
 | `email_outbox` | Queued reminder and notification emails with `template`, `client_id`, recipient, `sent_at`, provider message id; per-client templates and on/off settings live on `clients`. |
-| pg-boss schema | Job queue internals. |
+| `jobs` | Background work for the worker: `kind`, `client_id`, `requested_by`, `payload`, `status`, attempts and backoff, result. Readable through RLS by the requester and the client's CTAs. |
 
 ## What happens to the retired tables
 

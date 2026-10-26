@@ -14,6 +14,7 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY server ./server
+COPY worker ./worker
 COPY db ./db
 COPY --from=web /web/dist ./web/dist
 USER node

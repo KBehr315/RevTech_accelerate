@@ -7,8 +7,9 @@
   "scripts": {
     "start": "node server/index.ts",
     "migrate": "node server/migrate.js",
-    "test": "vitest run db",
-    "typecheck": "tsc -p server"
+    "test": "vitest run db worker",
+    "typecheck": "tsc -p server && tsc -p worker",
+    "worker": "node worker/index.ts"
   },
   "engines": {
     "node": ">=22.18"
@@ -22,6 +23,7 @@
     "@electric-sql/pglite": "^0.5.12",
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
   }

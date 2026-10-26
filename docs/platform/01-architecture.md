@@ -29,7 +29,7 @@ flowchart LR
   subgraph "Container Apps environment (private network)"
     API[API server<br/>Express + TypeScript<br/>auth, commands, uploads]
     PGRST[PostgREST<br/>internal only]
-    Worker[Worker<br/>pg-boss jobs:<br/>ingest, generate, render, package]
+    Worker[Worker<br/>jobs table:<br/>ingest, generate, render, package]
     Migrate[Migration job]
   end
 
@@ -65,13 +65,15 @@ flowchart LR
 1. **API server** (`server/`). Verifies Microsoft tokens, resolves the caller's profile, and exposes two kinds of endpoint:
    - `/api/db/*` – the existing PostgREST pass-through, for reads and simple writes governed entirely by RLS.
    - `/api/v1/*` – **command endpoints** for anything with workflow, files, or AI: upload, start generation, submit for review, approve, publish, promote, assistant questions. Each command validates input (zod), checks permission through a database function, writes an audit event, and either does the work or enqueues a job.
-2. **Worker** (`worker/`, same image, different start command, its own Container App). Runs background jobs from a Postgres-backed queue (**pg-boss**): source extraction, chunking and embedding, duplicate detection, coverage/readiness recalculation, generation pipelines, output rendering, packaging, change-impact scans. Scales on queue depth.
+2. **Worker** (`worker/`, same image, different start command, its own Container App). Runs background jobs from a Postgres-backed queue (the `jobs` table, `db/migrations/00101`): source extraction, chunking and embedding, duplicate detection, coverage/readiness recalculation, generation pipelines, output rendering, packaging, change-impact scans. Scales on queue depth.
 3. **PostgREST** – unchanged role.
 4. **Course player** – a static, pre-built bundle that renders a published course from its content model. The same bundle is embedded in the platform's learner experience *and* zipped into Standalone HTML / SCORM packages, so there is one implementation of the interactive patterns.
 
 ### Why a worker and a Postgres queue (not Service Bus, not Functions)
 
-Generation runs for minutes, calls models many times, and must survive restarts. pg-boss keeps jobs in the same database as the data they act on, so a job and the rows it creates commit together, there is no new service to secure or move to Azure Government, and job status is just a table the UI can read through RLS. At the year-one scale (≤50 clients, ≤10,000 learners) Postgres handles this comfortably. Revisit if job throughput or fan-out outgrows a single database.
+Generation runs for minutes, calls models many times, and must survive restarts. A jobs table in Postgres keeps jobs in the same database as the data they act on, so a job and the rows it creates commit together, there is no new service to secure or move to Azure Government, and job status is just a table the UI can read through RLS. At the year-one scale (≤50 clients, ≤10,000 learners) Postgres handles this comfortably. Revisit if job throughput or fan-out outgrows a single database.
+
+*Changed during Phase 0:* the design first named the pg-boss library. A small `jobs` table of our own (claim with `FOR UPDATE SKIP LOCKED`, retry with backoff, reclaim abandoned jobs) was used instead, because jobs then sit under the same RLS as everything else, people can only create them through permission-checked commands, and the worker needs no rights beyond three functions. Scheduling (reminders) will be a `run_after` in the future, enqueued by a daily job.
 
 ## How tenant isolation works
 
@@ -91,7 +93,7 @@ Decision so far: **not final**, so the design is row-level now and portable late
 | Front end | React 19, Vite, TypeScript, Tailwind, Radix UI, TanStack Query, React Router | Existing. Radix for accessibility. Add **TipTap** (ProseMirror) for the rich-text/structured editor in the editing and review workspaces – it supports comment anchors and tracked changes via marks. |
 | API | Node 20+, Express 5, **converted to TypeScript**; zod for request validation; OpenAPI generated from the zod schemas | Server grows from ~150 lines to the core of the product; types shared with the web app (`packages/contracts`) prevent drift. OpenAPI covers the §35 "API specification" deliverable. |
 | Database | Azure Database for PostgreSQL Flexible Server, with `pgvector` and built-in full-text search | RLS is the isolation model. **Move off the Postgres server shared with RevelationHub before any real client data** (see risk register). |
-| Queue / jobs | pg-boss on the same Postgres | See above. |
+| Queue / jobs | `jobs` table on the same Postgres, claimed with `SKIP LOCKED` | See above. |
 | Object storage | Azure Blob Storage, private endpoint, versioning + soft delete on | Source files, rendered outputs, packages, screenshots. Defender for Storage malware scanning on upload; a file stays `quarantined` until the scan result arrives. |
 | Search / RAG | Postgres FTS (keyword) + pgvector (semantic), hybrid ranking with reciprocal-rank fusion | Inside the RLS boundary. Adequate at year-one volume. Azure AI Search is the upgrade path if volume or relevance needs it; it would need per-client indexes or security trimming, which is why it's deferred. |
 | AI | **Model gateway** in our code with pluggable providers (see below) | Provider is configuration, per your decision. |
