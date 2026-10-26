@@ -6,6 +6,10 @@
 -- the box. Recreating those three things here lets every later migration (and
 -- every RLS policy and scoring RPC in them) run unchanged.
 --
+-- Those compliance migrations are now archived (db/migrations/archive/); the
+-- platform schema from 00100 on builds on the same auth.users, auth.uid() and
+-- roles.
+--
 -- How identity reaches auth.uid(): the API server (server/auth.js) verifies the
 -- caller's Microsoft ID token, looks up their profile id, and forwards the
 -- request to PostgREST with a short-lived JWT it signs itself
@@ -22,7 +26,7 @@ begin
   if not exists (select 1 from pg_roles where rolname = 'authenticated') then
     create role authenticated nologin;
   end if;
-  -- Used only by the API server, to call public.ensure_profile() (00006).
+  -- Used only by the API server, to call public.ensure_profile() (00100).
   if not exists (select 1 from pg_roles where rolname = 'service_role') then
     create role service_role nologin;
   end if;
@@ -30,8 +34,8 @@ end
 $$;
 
 -- Supabase keeps login credentials here; this app only needs the id and email,
--- plus the display name from the Microsoft token. Inserting a row fires
--- handle_new_user() (00001), which creates the matching profile.
+-- plus the display name from the Microsoft token. ensure_profile() and
+-- add_client_member() (00100) create the matching profile alongside each row.
 create table if not exists auth.users (
   id                  uuid primary key default gen_random_uuid(),
   email               text unique not null,

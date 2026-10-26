@@ -35,7 +35,9 @@ function jwks() {
   return _jwks;
 }
 
-/* The caller's email and display name, from a verified Microsoft ID token. */
+/* The caller's email, display name and guest status, from a verified Microsoft ID token.
+   Client users are B2B guests in the RevTech tenant, so their tokens come from the
+   same issuer as staff tokens; `idp` names their home tenant instead. */
 async function verifyCaller(authHeader) {
   const token = /^Bearer\s+(.+)$/i.exec(authHeader || '')?.[1];
   if (!token) throw httpError(401, 'Missing bearer token.');
@@ -51,9 +53,14 @@ async function verifyCaller(authHeader) {
   } catch {
     throw httpError(401, 'Sign-in could not be verified. Reload and try again.');
   }
-  const email = String(payload.preferred_username || payload.email || payload.upn || '').trim().toLowerCase();
+  // A guest's preferred_username can be the tenant-local alias
+  // (jane_client.com#EXT#@revtech.onmicrosoft.com); their real address is in email.
+  const email = [payload.preferred_username, payload.email, payload.upn]
+    .map(v => String(v || '').trim().toLowerCase())
+    .find(v => v && !v.includes('#ext#'));
   if (!email) throw httpError(403, 'Your Microsoft token carries no email address.');
-  return { email, name: String(payload.name || '').trim() };
+  const isGuest = Boolean(payload.idp) && payload.idp !== `https://sts.windows.net/${TENANT_ID}/`;
+  return { email, name: String(payload.name || '').trim(), isGuest };
 }
 
 async function mintToken(claims) {
@@ -64,15 +71,15 @@ async function mintToken(claims) {
     .sign(JWT_SECRET);
 }
 
-/* ensure_profile() is executable only by service_role (see 00006). */
-async function ensureProfile({ email, name }) {
+/* ensure_profile() is executable only by service_role (see 00100). */
+async function ensureProfile({ email, name, isGuest }) {
   const res = await fetch(`${PGRST_URL}/rpc/ensure_profile`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${await mintToken({ role: 'service_role' })}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ p_email: email, p_name: name }),
+    body: JSON.stringify({ p_email: email, p_name: name, p_is_guest: isGuest }),
   });
   if (!res.ok) {
     throw httpError(502, `Could not load your profile. PostgREST said: ${await res.text()}`);
@@ -81,8 +88,9 @@ async function ensureProfile({ email, name }) {
 }
 
 /* Profiles cached briefly so each database request doesn't cost an extra round
-   trip. Deactivating someone takes effect within this window; role changes take
-   effect immediately, because is_admin() reads the profiles table itself. */
+   trip. The database doesn't rely on it: its permission helpers read profiles
+   and memberships themselves, so deactivation and role changes take effect there
+   immediately; this cache only delays the friendlier "deactivated" message. */
 const PROFILE_TTL_MS = 60_000;
 const _profiles = new Map();
 

@@ -6,7 +6,9 @@
   "description": "API server for the Compliance LMS: serves web/dist, verifies Microsoft sign-in, and forwards database requests to PostgREST.",
   "scripts": {
     "start": "node server/index.js",
-    "migrate": "node server/migrate.js"
+    "migrate": "node server/migrate.js",
+    "test": "vitest run",
+    "test:db": "vitest run db/tests"
   },
   "engines": {
     "node": ">=20"
@@ -15,5 +17,9 @@
     "express": "^5.1.0",
     "jose": "^6.1.0",
     "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.12",
+    "vitest": "^5.0.5"
   }
 }
