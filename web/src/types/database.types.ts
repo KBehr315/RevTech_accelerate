@@ -1,4 +1,5 @@
-// Hand-authored to match db/migrations/00100_platform_identity_and_tenancy.sql.
+// Hand-authored to match db/migrations/00100_platform_identity_and_tenancy.sql
+// and 00101_background_jobs.sql.
 // Update this alongside every migration that changes a table or function the
 // web app uses. Insert/Update list only what callers may actually write: RLS and
 // column grants refuse the rest.
@@ -13,6 +14,7 @@ import type {
   ClientRole,
   ClientTerm,
   ClientWorkstream,
+  Job,
   PlatformRole,
   PlatformRoleGrant,
   PlatformSettings,
@@ -132,6 +134,7 @@ export type Database = {
         ]
       >
       audit_events: Table<AuditEvent>
+      jobs: Table<Job>
     }
     Views: { [_ in never]: never }
     Functions: {
@@ -147,6 +150,7 @@ export type Database = {
       }
       set_client_roles: { Args: { p_client_id: string; p_profile_id: string; p_roles: ClientRole[] }; Returns: undefined }
       activate_client: { Args: { p_client_id: string }; Returns: Client }
+      request_health_check: { Args: Record<string, never>; Returns: Job }
     }
   }
 }

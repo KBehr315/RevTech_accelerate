@@ -26,8 +26,10 @@ Live at https://accelerate.revtech.consulting (Azure, Operations Applications su
   platform. The retired compliance LMS's migrations are in `archive/`.
 - `db/tests/` — runs every migration in PGlite (Postgres in WebAssembly) and
   tests isolation between clients for every role.
-- `infra/provision.sh` — one-time Azure setup. Deploys after that are the
-  GitHub Actions workflow.
+- `infra/` — Bicep for one environment (`main.bicep`, parameters in `env/`),
+  applied with `infra/deploy.sh <environment>`. Code deploys are the GitHub
+  Actions workflow.
+- `worker/` — background job runner, same image, its own container app.
 
 ## How it runs in Azure
 

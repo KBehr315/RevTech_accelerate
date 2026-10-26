@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { db, unwrap } from '@/lib/db'
 import type { Database } from '@/types/database.types'
@@ -101,6 +102,22 @@ export function useSaveAiProvider() {
         : unwrap(await db.from('ai_providers').insert(fields).select().single()),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['platform', 'ai-providers'] }),
   })
+}
+
+/** Queues a health check and follows it until the worker finishes it. */
+export function useHealthCheck() {
+  const [jobId, setJobId] = useState<string | null>(null)
+  const start = useMutation({
+    mutationFn: async () => unwrap(await db.rpc('request_health_check')),
+    onSuccess: (job) => setJobId(job.id),
+  })
+  const job = useQuery({
+    queryKey: ['jobs', jobId],
+    enabled: !!jobId,
+    queryFn: async () => unwrap(await db.from('jobs').select('*').eq('id', jobId!).single()),
+    refetchInterval: (query) => (['succeeded', 'failed'].includes(query.state.data?.status ?? '') ? false : 2_000),
+  })
+  return { start, job }
 }
 
 export function usePlatformAudit() {

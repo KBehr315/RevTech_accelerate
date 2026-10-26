@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 # None of these are secrets. The login is a federated credential on
-# id-accelerate-deploy that only trusts this repo's master branch (infra/provision.sh).
+# id-accelerate-deploy that only trusts this repo's master branch (infra/main.bicep).
 env:
   AZURE_CLIENT_ID: b050ac37-95ec-493c-9e04-2fee6bb941f9   # id-accelerate-deploy
   AZURE_TENANT_ID: c0fdfbc6-f518-47f4-9e98-5517a1259553
@@ -20,6 +20,7 @@ env:
   REGISTRY: acrrevhubpreviewad4fad06
   REGISTRY_RESOURCE_GROUP: rg-revhub-preview
   CONTAINER_APP: ca-accelerate-preview
+  WORKER_APP: ca-accelerate-worker-preview
   MIGRATE_JOB: caj-accelerate-migrate
   IMAGE_NAME: accelerate
 
@@ -84,7 +85,12 @@ jobs:
           [ "$STATUS" = Succeeded ]
 
       - name: Deploy new image
-        run: az containerapp update -g "$RESOURCE_GROUP" -n "$CONTAINER_APP" --image "$IMAGE" -o none
+        run: |
+          az containerapp update -g "$RESOURCE_GROUP" -n "$CONTAINER_APP" --image "$IMAGE" -o none
+          # The worker exists once infra/deploy.sh has run for this environment.
+          if az containerapp show -g "$RESOURCE_GROUP" -n "$WORKER_APP" -o none 2>/dev/null; then
+            az containerapp update -g "$RESOURCE_GROUP" -n "$WORKER_APP" --image "$IMAGE" -o none
+          fi
 
       - name: Azure logout
         if: always()

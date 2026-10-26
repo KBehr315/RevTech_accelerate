@@ -137,5 +137,5 @@ Deployment options (§33): the stack is containers + Postgres + Blob + Key Vault
 | `server/` | Convert to TypeScript; add `routes/` for command endpoints, `ai/` (gateway), `storage/` (blob), `audit/`, `jobs/` (enqueue). `auth.js` gains guest-email handling and drops the RevTech-only first-sign-in assumption: a guest with no membership gets a profile but sees nothing. |
 | `worker/` | New. |
 | `web/` | Keep `ui/` primitives, shell, auth. Replace admin/employee areas with context-aware navigation (client switcher + Global/Shared context), and the new screens in [08-screens.md](08-screens.md). The quiz runner and content-block renderer become the seed of the course player. |
-| `infra/` | `provision.sh` → Bicep; add storage account, worker app, Application Insights. |
+| `infra/` | `provision.sh` → Bicep (done in Phase 0: `infra/main.bicep`, `infra/deploy.sh`); storage account and worker app added; Application Insights still to add. |
 | `.github/workflows/` | Add test job (unit + RLS + e2e) before deploy; deploy worker alongside API. |

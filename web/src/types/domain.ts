@@ -148,6 +148,25 @@ export type ClientGroupMember = {
   client_id: string
 }
 
+export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled'
+
+export type Job = {
+  id: string
+  kind: string
+  client_id: string | null
+  requested_by: string | null
+  payload: Record<string, unknown>
+  status: JobStatus
+  attempts: number
+  max_attempts: number
+  run_after: string
+  last_error: string | null
+  result: Record<string, unknown> | null
+  finished_at: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type AuditEvent = {
   id: number
   at: string

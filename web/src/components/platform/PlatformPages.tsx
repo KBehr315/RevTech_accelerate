@@ -8,10 +8,11 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input, Label } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AuditTable } from '@/components/common/AuditTable'
-import { PageHeader } from '@/components/common/PageHeader'
+import { ErrorText, PageHeader } from '@/components/common/PageHeader'
 import { useSession } from '@/hooks/useSession'
 import {
   useAllClients,
+  useHealthCheck,
   usePeople,
   usePlatformAudit,
   usePlatformSettings,
@@ -20,7 +21,7 @@ import {
   useUpdatePlatformSettings,
 } from '@/hooks/usePlatform'
 import { CLASSIFICATION_LABELS, CLIENT_STATUS_LABELS, PLATFORM_ROLE_LABELS } from '@/lib/labels'
-import { formatDate } from '@/lib/utils'
+import { formatDate, formatDateTime } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
 import type { PlatformRole } from '@/types/domain'
 import { NewClientButton } from './NewClientDialog'
@@ -54,7 +55,40 @@ export function PlatformHomePage() {
           </Link>
         ))}
       </div>
+      <HealthCheckCard />
     </div>
+  )
+}
+
+function HealthCheckCard() {
+  const { start, job } = useHealthCheck()
+  const status = job.data?.status
+  const waiting = start.isPending || (!!job.data && !['succeeded', 'failed'].includes(status ?? ''))
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Background worker</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 text-sm text-slate-600">
+        <p>Sends a job through the queue and waits for the worker to pick it up, acting as you.</p>
+        <div>
+          <Button variant="outline" disabled={waiting} onClick={() => start.mutate()}>
+            {waiting ? 'Waiting for the worker…' : 'Run health check'}
+          </Button>
+        </div>
+        {status === 'succeeded' && (
+          <p className="text-status-green">
+            Worker {String(job.data?.result?.worker ?? '')} answered at {formatDateTime(String(job.data?.result?.database_time ?? ''))}.
+          </p>
+        )}
+        {status === 'failed' && <p className="text-status-red">Failed: {job.data?.last_error}</p>}
+        {status === 'queued' && (job.data?.attempts ?? 0) === 0 && (
+          <p className="text-xs text-slate-500">Queued. If this doesn't change within a minute, the worker isn't running.</p>
+        )}
+        <ErrorText error={start.error} />
+      </CardContent>
+    </Card>
   )
 }
 
