@@ -62,6 +62,8 @@ var names = {
   pgrst: 'ca-accelerate-pgrst-${environmentName}'
   worker: 'ca-accelerate-worker-${environmentName}'
   migrate: 'caj-accelerate-migrate${environmentName == 'preview' ? '' : '-${environmentName}'}'
+  logs: 'log-accelerate-${environmentName}'
+  appInsights: 'appi-accelerate-${environmentName}'
   database: 'accelerate'
 }
 
@@ -208,6 +210,31 @@ resource blobEndpointDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroup
 }
 
 // ---------------------------------------------------------------------------
+// Monitoring: Application Insights for the API and worker (server/telemetry.ts),
+// in its own Log Analytics workspace so Accelerate's telemetry is separate from
+// RevelationHub's.
+// ---------------------------------------------------------------------------
+resource logs 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+  name: names.logs
+  location: location
+  properties: {
+    sku: { name: 'PerGB2018' }
+    retentionInDays: 30
+  }
+}
+
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: names.appInsights
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logs.id
+    IngestionMode: 'LogAnalytics'
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Container apps
 // ---------------------------------------------------------------------------
 var kvUrl = 'https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets'
@@ -286,6 +313,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
             // AZURE_CLIENT_ID above is the sign-in app, so the managed identity gets its own name.
             { name: 'MANAGED_IDENTITY_CLIENT_ID', value: identity.properties.clientId }
             { name: 'STORAGE_BLOB_URL', value: storage.properties.primaryEndpoints.blob }
+            { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
           ]
           probes: [
             { type: 'Liveness', httpGet: { path: '/healthz', port: 8080 }, periodSeconds: 30 }
@@ -312,12 +340,13 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
         {
           name: 'worker'
           image: image
-          command: ['node', 'worker/index.ts']
+          command: ['node', '--import', '@azure/monitor-opentelemetry/loader', '--import', './server/telemetry.ts', 'worker/index.ts']
           resources: { cpu: json('0.25'), memory: '0.5Gi' }
           env: [
             { name: 'DATABASE_URL', secretRef: 'worker-database-url' }
             { name: 'MANAGED_IDENTITY_CLIENT_ID', value: identity.properties.clientId }
             { name: 'STORAGE_BLOB_URL', value: storage.properties.primaryEndpoints.blob }
+            { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
             // AI provider keys, read by name from each provider's config (worker/ai/secrets.ts).
             { name: 'KEY_VAULT_URL', value: keyVault.properties.vaultUri }
           ]
@@ -428,3 +457,4 @@ output postgresFqdn string = postgres.properties.fullyQualifiedDomainName
 output postgresAdmin string = postgres.properties.administratorLogin
 output databaseName string = names.database
 output storageBlobUrl string = storage.properties.primaryEndpoints.blob
+output appInsightsName string = appInsights.name

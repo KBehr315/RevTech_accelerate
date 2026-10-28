@@ -19,4 +19,4 @@ COPY db ./db
 COPY --from=web /web/dist ./web/dist
 USER node
 EXPOSE 8080
-CMD ["node", "server/index.ts"]
+CMD ["node", "--import", "@azure/monitor-opentelemetry/loader", "--import", "./server/telemetry.ts", "server/index.ts"]

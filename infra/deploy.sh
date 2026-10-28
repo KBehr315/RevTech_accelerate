@@ -113,4 +113,5 @@ echo
 echo "App:              https://$(output apiFqdn)"
 echo "Deploy client id: $(output deployClientId)   (AZURE_CLIENT_ID in .github/workflows/deploy-azure.yml)"
 echo "Blob storage:     $(output storageBlobUrl)"
+echo "Monitoring:       Application Insights $(output appInsightsName) in $RG"
 echo "Check the worker: Platform administration > Overview > Run health check"
