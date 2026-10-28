@@ -1,10 +1,11 @@
 // Hand-authored to match db/migrations/00100_platform_identity_and_tenancy.sql
-// and the migrations after it (00101 jobs, 00102 AI gateway, 00103 knowledge library).
+// and the migrations after it (00101 jobs, 00102 AI gateway, 00103-00106 knowledge library).
 // Update this alongside every migration that changes a table or function the
 // web app uses. Insert/Update list only what callers may actually write: RLS and
 // column grants refuse the rest.
 import type {
   AiProvider,
+  AssetAudience,
   AuditEvent,
   Client,
   ClientBusinessRole,
@@ -17,6 +18,7 @@ import type {
   Job,
   KnowledgeAsset,
   KnowledgeAssetVersion,
+  KnowledgeScope,
   PlatformRole,
   PlatformRoleGrant,
   PlatformSettings,
@@ -160,6 +162,33 @@ export type Database = {
           },
         ]
       >
+      asset_audiences: Table<
+        AssetAudience,
+        never,
+        never,
+        [
+          {
+            foreignKeyName: 'asset_audiences_asset_id_fkey'
+            columns: ['asset_id']
+            referencedRelation: 'knowledge_assets'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'asset_audiences_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: true
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'asset_audiences_client_group_id_fkey'
+            columns: ['client_group_id']
+            isOneToOne: true
+            referencedRelation: 'client_groups'
+            referencedColumns: ['id']
+          },
+        ]
+      >
       knowledge_asset_versions: Table<
         KnowledgeAssetVersion,
         never,
@@ -192,6 +221,20 @@ export type Database = {
       request_health_check: { Args: Record<string, never>; Returns: Job }
       request_ai_provider_test: { Args: { p_provider_id: string }; Returns: Job }
       search_library: { Args: { p_client_id: string | null; p_query: string; p_limit?: number }; Returns: SearchResult[] }
+      place_asset: {
+        Args: { p_asset_id: string; p_scope: KnowledgeScope; p_client_ids?: string[]; p_group_ids?: string[] }
+        Returns: KnowledgeAsset
+      }
+      copy_asset: {
+        Args: { p_asset_id: string; p_scope: KnowledgeScope; p_client_ids?: string[]; p_group_ids?: string[] }
+        Returns: KnowledgeAsset
+      }
+      asset_copies: { Args: { p_asset_ids: string[] }; Returns: { copied_from_asset_id: string; scope: KnowledgeScope }[] }
+      client_shared_assets: {
+        Args: { p_client_id: string }
+        Returns: KnowledgeAsset[]
+        SetofOptions: { from: '*'; to: 'knowledge_assets'; isOneToOne: false; isSetofReturn: true }
+      }
     }
   }
 }

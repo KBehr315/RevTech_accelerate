@@ -23,13 +23,16 @@ export function GlobalHomePage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Global and Shared libraries</CardTitle>
+            <CardTitle>Library</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-slate-600">
             <p>
-              Uploading, classifying and searching knowledge arrives in the next phase (Knowledge). Items uploaded here will
-              wait in Pending Classification and stay unavailable to AI until you classify them.
+              RevTech's own documents: Global for every client, Shared for chosen clients, and RevTech Reference for
+              RevTech only, which AI checks first when building training.
             </p>
+            <Link to="/global/library" className="mt-2 inline-block text-brand-600 hover:underline">
+              Open the library
+            </Link>
           </CardContent>
         </Card>
       </div>

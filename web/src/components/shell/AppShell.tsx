@@ -44,6 +44,7 @@ function navFor(context: ActiveContext): NavItem[] {
     case 'global':
       return [
         { to: '/global', label: 'Home', icon: Home, end: true },
+        { to: '/global/library', label: 'Library', icon: Library },
         { to: '/global/client-groups', label: 'Client groups', icon: UsersRound },
       ]
     case 'platform':
