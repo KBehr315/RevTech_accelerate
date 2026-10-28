@@ -128,3 +128,23 @@ export async function callerProfile(authHeader: string | undefined, { fresh = fa
 export function postgrestToken(profile: Profile): Promise<string> {
   return mintToken({ role: 'authenticated', sub: profile.id, email: profile.email });
 }
+
+/* For the few functions only this server may call (ensure_profile, complete_upload…). */
+export function serviceToken(): Promise<string> {
+  return mintToken({ role: 'service_role' });
+}
+
+/* Calls a database function through PostgREST. Its error message (written for
+   people, see the security-definer functions) becomes the HttpError's. */
+export async function rpc<T>(token: string, fn: string, args: Record<string, unknown>): Promise<T> {
+  const res = await fetch(`${PGRST_URL}/rpc/${fn}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(args),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw httpError(res.status >= 500 ? 502 : res.status, body?.message || `${fn} failed (${res.status}).`);
+  }
+  return body as T;
+}

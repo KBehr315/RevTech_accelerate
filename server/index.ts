@@ -3,12 +3,14 @@
 //
 //   GET  /api/me     the caller's profile, created on first sign-in
 //   *    /api/db/*   forwarded to PostgREST as the caller (see server/auth.ts)
+//   PUT  /api/upload, GET /api/files/:id   knowledge files (see server/files.ts)
 //   GET  /healthz    liveness probe
 
 import express, { type Response } from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { callerProfile, missingEnv, postgrestToken, PGRST_URL, type HttpError } from './auth.ts';
+import { download, upload } from './files.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, '..', 'web', 'dist');
@@ -69,6 +71,10 @@ app.use('/api/db', express.raw({ type: () => true, limit: '5mb' }), async (req, 
     sendError(res, err as HttpError);
   }
 });
+
+// No body parser: the file streams straight through to Blob Storage.
+app.put('/api/upload', (req, res) => upload(req, res, sendError));
+app.get('/api/files/:id', (req, res) => download(req, res, sendError));
 
 app.use('/api', (req, res) => res.status(404).json({ message: 'Not found.' }));
 

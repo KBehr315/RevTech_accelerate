@@ -1,5 +1,5 @@
 // Hand-authored to match db/migrations/00100_platform_identity_and_tenancy.sql
-// and 00101_background_jobs.sql.
+// and the migrations after it (00101 jobs, 00102 AI gateway, 00103 knowledge library).
 // Update this alongside every migration that changes a table or function the
 // web app uses. Insert/Update list only what callers may actually write: RLS and
 // column grants refuse the rest.
@@ -15,10 +15,13 @@ import type {
   ClientTerm,
   ClientWorkstream,
   Job,
+  KnowledgeAsset,
+  KnowledgeAssetVersion,
   PlatformRole,
   PlatformRoleGrant,
   PlatformSettings,
   Profile,
+  SourceFile,
 } from './domain'
 
 type Relationship = {
@@ -60,7 +63,7 @@ type ClientEditable = Partial<
 export type Database = {
   public: {
     Tables: {
-      platform_settings: Table<PlatformSettings, never, Pick<PlatformSettings, 'session_idle_minutes'>>
+      platform_settings: Table<PlatformSettings, never, Partial<Pick<PlatformSettings, 'session_idle_minutes' | 'malware_scanning'>>>
       profiles: Table<Profile>
       platform_role_grants: Table<
         PlatformRoleGrant,
@@ -135,6 +138,41 @@ export type Database = {
       >
       audit_events: Table<AuditEvent>
       jobs: Table<Job>
+      source_files: Table<SourceFile>
+      knowledge_assets: Table<
+        KnowledgeAsset,
+        never,
+        never,
+        [
+          {
+            foreignKeyName: 'knowledge_assets_current_version_id_fkey'
+            columns: ['current_version_id']
+            isOneToOne: true
+            referencedRelation: 'knowledge_asset_versions'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'knowledge_assets_created_by_fkey'
+            columns: ['created_by']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      >
+      knowledge_asset_versions: Table<
+        KnowledgeAssetVersion,
+        never,
+        never,
+        [
+          {
+            foreignKeyName: 'knowledge_asset_versions_source_file_id_fkey'
+            columns: ['source_file_id']
+            isOneToOne: true
+            referencedRelation: 'source_files'
+            referencedColumns: ['id']
+          },
+        ]
+      >
     }
     Views: { [_ in never]: never }
     Functions: {

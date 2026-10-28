@@ -5,6 +5,7 @@ import {
   FileClock,
   GraduationCap,
   Home,
+  Library,
   LogOut,
   Settings,
   SlidersHorizontal,
@@ -33,6 +34,9 @@ function navFor(context: ActiveContext): NavItem[] {
       const isCta = roles.includes('client_training_admin')
       const items: NavItem[] = [{ to: base, label: 'Home', icon: Home, end: true }]
       if (isCta) items.push({ to: `${base}/setup`, label: 'Client setup', icon: SlidersHorizontal })
+      if (isCta || roles.includes('contributor') || roles.includes('reviewer')) {
+        items.push({ to: `${base}/library`, label: 'Library', icon: Library })
+      }
       if (isCta || roles.includes('lms_admin')) items.push({ to: `${base}/members`, label: 'Members', icon: Users })
       if (isCta) items.push({ to: `${base}/audit`, label: 'Audit log', icon: FileClock })
       return items
