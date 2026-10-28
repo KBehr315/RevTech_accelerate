@@ -379,9 +379,12 @@ const STAGES: ApprovalStage[] = ['contributor', 'sme', 'client']
 
 function GovernanceStep({ client, save }: { client: Client; save: Save }) {
   const { data: settings } = usePlatformSettings()
-  const { data: providers } = useAiProviders()
+  // Platform Administrators also see disabled providers; a client may only allow enabled ones.
+  const providers = useAiProviders().data?.filter((p) => p.is_enabled)
   const [maxClass, setMaxClass] = useState<Classification>(client.max_classification)
+  // Drop any provider that has since been disabled, so saving the step still works.
   const [allowed, setAllowed] = useState(client.allowed_ai_providers)
+  const enabledAllowed = allowed.filter((id) => !providers || providers.some((p) => p.id === id))
   const [stages, setStages] = useState(client.approval_stages)
   const [accessibility, setAccessibility] = useState(client.accessibility_requirements ?? '')
   const [exportNotes, setExportNotes] = useState(client.export_control_notes ?? '')
@@ -393,7 +396,7 @@ function GovernanceStep({ client, save }: { client: Client; save: Save }) {
     <form
       onSubmit={submit({
         max_classification: maxClass,
-        allowed_ai_providers: allowed,
+        allowed_ai_providers: enabledAllowed,
         approval_stages: STAGES.filter((s) => stages.includes(s)),
         accessibility_requirements: accessibility.trim() || null,
         export_control_notes: exportNotes.trim() || null,
@@ -423,7 +426,7 @@ function GovernanceStep({ client, save }: { client: Client; save: Save }) {
           <legend className="mb-1 text-sm font-medium text-slate-700">AI services this client allows</legend>
           {!providers?.length && (
             <p className="text-sm text-slate-500">
-              No AI services are enabled on the platform yet. A Platform Administrator adds them under AI providers.
+              No AI services are enabled on the platform yet. A Platform Administrator adds and enables them under AI providers.
             </p>
           )}
           {providers?.map((p) => {
