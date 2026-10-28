@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { db, unwrap } from '@/lib/db'
 import type { Database } from '@/types/database.types'
-import type { PlatformRole } from '@/types/domain'
+import type { Job, PlatformRole } from '@/types/domain'
 
 type Tables = Database['public']['Tables']
 
@@ -105,12 +105,10 @@ export function useSaveAiProvider() {
 }
 
 /** Queues a health check and follows it until the worker finishes it. */
-export function useHealthCheck() {
+/** Starts a job with `enqueue` and polls it until it finishes. */
+function useWatchedJob<V>(enqueue: (vars: V) => Promise<Job>) {
   const [jobId, setJobId] = useState<string | null>(null)
-  const start = useMutation({
-    mutationFn: async () => unwrap(await db.rpc('request_health_check')),
-    onSuccess: (job) => setJobId(job.id),
-  })
+  const start = useMutation({ mutationFn: enqueue, onSuccess: (job) => setJobId(job.id) })
   const job = useQuery({
     queryKey: ['jobs', jobId],
     enabled: !!jobId,
@@ -118,6 +116,16 @@ export function useHealthCheck() {
     refetchInterval: (query) => (['succeeded', 'failed'].includes(query.state.data?.status ?? '') ? false : 2_000),
   })
   return { start, job }
+}
+
+export function useHealthCheck() {
+  return useWatchedJob<void>(async () => unwrap(await db.rpc('request_health_check')))
+}
+
+export function useAiProviderTest() {
+  return useWatchedJob<string>(async (providerId) =>
+    unwrap(await db.rpc('request_ai_provider_test', { p_provider_id: providerId })),
+  )
 }
 
 export function usePlatformAudit() {

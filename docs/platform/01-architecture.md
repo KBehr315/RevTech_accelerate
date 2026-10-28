@@ -109,14 +109,14 @@ Decision so far: **not final**, so the design is row-level now and portable late
 
 ### The model gateway
 
-One module (`server/ai/`) that every AI call goes through – generation, embeddings, OCR, assistant. It owns:
+One module (`worker/ai/`) that every AI call goes through – generation, embeddings, OCR, assistant. It lives with the worker because model calls run as background jobs; each call acts for the person who requested it. It owns:
 
 - **Provider adapters** behind one interface (`complete`, `embed`, `ocr`). Initial adapters: Anthropic API, Claude on AWS Bedrock, Azure OpenAI. Adding one is a file, not a refactor.
 - **A provider registry** (Platform Administrator-managed table): endpoint, models, region, whether the provider is approved for `Client Confidential`, whether it is approved for CUI/export-controlled data (all `false` until authorized), and data-retention terms.
 - **Per-client policy**: which providers a client allows. A client with none allowed cannot generate.
 - **A classification check on every call**: the highest Security Classification among the chunks in the prompt must be within the provider's ceiling *and* the client's allowed list, or the call is refused and logged. This is how §29's "do not transmit CUI … to a public AI model unless expressly authorized" is enforced in code.
 - **Logging**: provider, model, version, token counts, latency, the job and manifest it belongs to. Prompts and completions for Client-Specific content are stored with the job in the client's own rows (so they inherit RLS and retention), not in a central log.
-- Prompt templates are versioned files in the repo (`server/ai/prompts/`), and their version is written into each Generation Manifest.
+- Prompt templates are versioned files in the repo (`worker/ai/prompts/`), and their version is written into each Generation Manifest.
 
 ## Environments and deployment
 

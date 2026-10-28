@@ -91,6 +91,10 @@ export const HELP_CONTENT = {
           no provider can be approved for CUI or export-controlled data in this environment.
         </p>
         <p>Clients choose which enabled providers they allow in their own setup.</p>
+        <p>
+          Test connection sends one short sentence to the provider through the background worker, using its Key Vault
+          secret and model, so you can check them before enabling it.
+        </p>
       </>
     ),
   },
