@@ -122,6 +122,10 @@ CI gates the deploy: unit + SQL + API tests must pass before the image is built;
 | OCR (scans, screenshots) | Claude through the model gateway, with the same classification and client-provider checks as every AI call. New uploads are read straight away: transcription for search is not use in training, so it does not wait for the asset's AI-use approval. Text read this way is labeled "read by AI" |
 | Tuning extraction | On what Kelly sees in the Library after uploading; no local sample folder |
 | Phase 1 demo files | Kelly provides sample documents; preview holds no real client data, so they are fictionalized first |
+| Library buckets | Four: **Global** (every client), **Shared** (a chosen set of clients or client groups), **Client** (one client), and **RevTech Reference** (RevTech administrators only; never shown to any client). Every document sits in exactly one bucket, or in Pending until it is placed |
+| Client document into RevTech Reference | **Copied**, never moved: the client keeps its file, and RevTech Reference holds its own copy linked back to the original |
+| AI use of RevTech Reference | Searched first when generating training for any client. Content, structure and approach may all be reused; the source client's names and data must not appear. Generation replaces them, and a leak check flags any name, identifier or figure from the source client in another client's draft before review |
+| Search results | Grouped by document: each file appears once, with its best matches beneath |
 
 ### Still open, needed by phase
 

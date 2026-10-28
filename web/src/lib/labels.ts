@@ -110,7 +110,18 @@ export const SCOPE_LABELS: Record<KnowledgeScope, string> = {
   global: 'Global',
   shared: 'Shared',
   client: 'Client-Specific',
+  revtech_reference: 'RevTech Reference',
   pending_classification: 'Pending Classification',
+}
+
+/** Who sees a document in each bucket (db/migrations/00106). */
+export const SCOPE_DESCRIPTIONS: Record<KnowledgeScope, string> = {
+  global: "Every client's authors and reviewers.",
+  shared: 'Only the clients and client groups you choose.',
+  client: "Only this client's members.",
+  revtech_reference:
+    "RevTech's Global Knowledge Administrators only, never a client. AI checks it first when building training, without carrying over the original client's names or data.",
+  pending_classification: 'Waiting to be placed. Only Global Knowledge Administrators and the uploader see it, and AI may not use it.',
 }
 
 export const ASSET_APPROVAL_LABELS: Record<AssetApproval, string> = {

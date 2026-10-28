@@ -13,6 +13,7 @@ import { ContextPickerPage } from '@/components/home/ContextPickerPage'
 import { MyTrainingPage } from '@/components/home/MyTrainingPage'
 import { GlobalHomePage } from '@/components/global/GlobalHomePage'
 import { ClientGroupsPage } from '@/components/global/ClientGroupsPage'
+import { GlobalLibraryPage } from '@/components/global/GlobalLibraryPage'
 import { ClientLayout, RequireClientRole } from '@/components/client/ClientLayout'
 import { ClientHomePage } from '@/components/client/ClientHomePage'
 import { ClientSetupWizard } from '@/components/client/ClientSetupWizard'
@@ -65,6 +66,7 @@ function App() {
 
               <Route element={<RequirePlatformRole role="global_knowledge_admin" />}>
                 <Route path="/global" element={<GlobalHomePage />} />
+                <Route path="/global/library" element={<GlobalLibraryPage />} />
                 <Route path="/global/client-groups" element={<ClientGroupsPage />} />
               </Route>
 

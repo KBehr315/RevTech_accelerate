@@ -62,13 +62,37 @@ export const HELP_CONTENT = {
           screenshots and existing training.
         </p>
         <p>
-          New files start as Draft and Client Confidential (or the client's highest classification, if lower). AI may
-          not use them until a person approves it. Only this client's members can see them.
+          Every document sits in one of four libraries. <strong>This client's</strong> documents are seen only by its
+          members. <strong>Shared</strong> documents come from RevTech for a chosen set of clients, and{' '}
+          <strong>Global</strong> ones for every client. <strong>RevTech Reference</strong> is for RevTech's Global
+          Knowledge Administrators only; this client never sees it.
         </p>
         <p>
-          Each file is checked for viruses before anyone can download it. Training Administrators see every file;
-          Contributors and Reviewers see what they uploaded or were given access to.
+          New files start as Draft and Client Confidential (or the client's highest classification, if lower). AI may
+          not use them until a person approves it. Training Administrators see every file; Contributors and Reviewers
+          see what they uploaded or were given access to.
         </p>
+        <p>
+          A Global Knowledge Administrator can <strong>copy</strong> a document to RevTech Reference. The client keeps
+          its own; nothing is moved out. Copies to Global or Shared, which other clients see, also need this client's
+          Training Administrator.
+        </p>
+      </>
+    ),
+  },
+  'global-library': {
+    title: 'Global Library',
+    body: (
+      <>
+        <p>
+          <strong>RevTech Reference</strong>: RevTech only. AI checks it first when building any client's training and
+          may reuse its content, structure and approach, but never the original client's names or data.
+        </p>
+        <p>
+          <strong>Global</strong>: every client's authors and reviewers. <strong>Shared</strong>: only the clients and
+          client groups you choose. <strong>Pending</strong>: not placed yet; AI may not use it.
+        </p>
+        <p>Use “Move to…” to change where a document sits. Client documents are copied in from each client's Library.</p>
       </>
     ),
   },

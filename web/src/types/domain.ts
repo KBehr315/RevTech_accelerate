@@ -181,7 +181,7 @@ export type AuditEvent = {
 }
 
 // Knowledge library (db/migrations/00103)
-export type KnowledgeScope = 'global' | 'shared' | 'client' | 'pending_classification'
+export type KnowledgeScope = 'global' | 'shared' | 'client' | 'revtech_reference' | 'pending_classification'
 export type AssetLifecycle = 'active' | 'superseded' | 'expired' | 'archived'
 export type AssetApproval = 'draft' | 'in_review' | 'approved' | 'rejected'
 export type AiUse = 'generation' | 'reference' | 'human_approval_required' | 'not_approved'
@@ -250,9 +250,20 @@ export type KnowledgeAsset = {
   workstream_ids: string[]
   owner_id: string | null
   current_version_id: string | null
+  /** Set on a copy made from a client's document (copy_asset, 00106). */
+  copied_from_asset_id: string | null
   created_by: string | null
   created_at: string
   updated_at: string
+}
+
+/** Who a Shared asset is shared with: one client or one client group per row (00106). */
+export type AssetAudience = {
+  id: string
+  asset_id: string
+  client_id: string | null
+  client_group_id: string | null
+  created_at: string
 }
 
 export type KnowledgeAssetVersion = {
