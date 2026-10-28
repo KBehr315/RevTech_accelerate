@@ -116,7 +116,11 @@ export const HELP_CONTENT = {
     title: 'People & roles',
     body: (
       <>
-        <p>Everyone who has signed in or been added to a client.</p>
+        <p>Everyone who has signed in or been added to a client, listed under each client they belong to.</p>
+        <p>
+          <strong>RevTech</strong> lists everyone with a platform role, and anyone who isn't in a client yet. Someone in
+          two clients appears under both.
+        </p>
         <p>
           Platform roles cover the platform as a whole. They don't give access to any client's content; that comes only
           from client membership.

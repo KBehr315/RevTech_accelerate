@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { db, unwrap } from '@/lib/db'
 import type { Database } from '@/types/database.types'
-import type { Job, PlatformRole } from '@/types/domain'
+import type { ClientRole, Job, PlatformRole } from '@/types/domain'
 
 type Tables = Database['public']['Tables']
 
@@ -50,6 +50,7 @@ export interface PersonRow {
   is_guest: boolean
   created_at: string
   platform_role_grants: { role: PlatformRole }[]
+  memberships: { is_active: boolean; roles: ClientRole[]; client: { id: string; name: string } | null }[]
 }
 
 export function usePeople() {
@@ -59,7 +60,7 @@ export function usePeople() {
       unwrap(
         await db
           .from('profiles')
-          .select('id, email, full_name, is_active, is_guest, created_at, platform_role_grants!platform_role_grants_profile_id_fkey(role)')
+          .select('id, email, full_name, is_active, is_guest, created_at, platform_role_grants!platform_role_grants_profile_id_fkey(role), memberships:client_memberships!client_memberships_profile_id_fkey(is_active, roles, client:clients(id, name))')
           .order('full_name'),
       ) as PersonRow[],
   })
