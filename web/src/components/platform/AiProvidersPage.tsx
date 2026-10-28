@@ -10,7 +10,7 @@ import { Input, Label } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorText, PageHeader } from '@/components/common/PageHeader'
-import { useAiProviders, usePlatformSettings, useSaveAiProvider } from '@/hooks/usePlatform'
+import { useAiProviders, useAiProviderTest, usePlatformSettings, useSaveAiProvider } from '@/hooks/usePlatform'
 import { AI_PROVIDER_KIND_LABELS, CLASSIFICATIONS, CLASSIFICATION_LABELS, classificationRank } from '@/lib/labels'
 import type { AiProvider, AiProviderKind, Classification } from '@/types/domain'
 
@@ -58,6 +58,9 @@ export function AiProvidersPage() {
   const save = useSaveAiProvider()
   const [draft, setDraft] = useState<Draft | null>(null)
   const ceiling = settings ? classificationRank(settings.max_classification) : 4
+  const test = useAiProviderTest()
+  const [testedId, setTestedId] = useState<string | null>(null)
+  const testing = test.start.isPending || (!!test.job.data && !['succeeded', 'failed'].includes(test.job.data.status))
 
   function close() {
     setDraft(null)
@@ -106,7 +109,21 @@ export function AiProvidersPage() {
                     {AI_PROVIDER_KIND_LABELS[p.kind]} · up to {CLASSIFICATION_LABELS[p.max_classification]} · CUI: not approved
                   </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setDraft(toDraft(p))}>Edit</Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={testing}
+                    onClick={() => {
+                      setTestedId(p.id)
+                      test.start.mutate(p.id)
+                    }}
+                  >
+                    {testing && testedId === p.id ? 'Testing…' : 'Test connection'}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setDraft(toDraft(p))}>Edit</Button>
+                </div>
+                {testedId === p.id && <ProviderTestResult start={test.start} job={test.job} />}
               </li>
             ))}
           </ul>
@@ -138,11 +155,11 @@ export function AiProvidersPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="ai-model">Model</Label>
-                  <Input id="ai-model" value={draft.model} onChange={(e) => setDraft({ ...draft, model: e.target.value })} />
+                  <Input id="ai-model" placeholder="claude-opus-5-5" value={draft.model} onChange={(e) => setDraft({ ...draft, model: e.target.value })} />
                 </div>
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="ai-secret">Key Vault secret name</Label>
-                  <Input id="ai-secret" value={draft.keyVaultSecret} onChange={(e) => setDraft({ ...draft, keyVaultSecret: e.target.value })} />
+                  <Input id="ai-secret" placeholder="anthropic-api-key" value={draft.keyVaultSecret} onChange={(e) => setDraft({ ...draft, keyVaultSecret: e.target.value })} />
                 </div>
               </div>
               <div className="flex flex-col gap-1">
@@ -189,6 +206,27 @@ export function AiProvidersPage() {
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+type ProviderTest = ReturnType<typeof useAiProviderTest>
+
+function ProviderTestResult({ start, job }: ProviderTest) {
+  const status = job.data?.status
+  const result = job.data?.result
+  return (
+    <div className="w-full text-sm" role="status">
+      {status === 'succeeded' && (
+        <p className="text-status-green">
+          Connected. {String(result?.model ?? '')} replied: “{String(result?.reply ?? '')}”
+        </p>
+      )}
+      {status === 'failed' && <p className="text-status-red">Failed: {job.data?.last_error}</p>}
+      {status === 'queued' && (job.data?.attempts ?? 0) === 0 && (
+        <p className="text-xs text-slate-500">Queued. If this doesn't change within a minute, the worker isn't running.</p>
+      )}
+      <ErrorText error={start.error} />
     </div>
   )
 }

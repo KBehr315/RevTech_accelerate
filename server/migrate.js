@@ -9,6 +9,8 @@
 //   AUTHENTICATOR_PASSWORD       password PostgREST connects with (pgrst-db-uri)
 //   WORKER_PASSWORD              password the background worker connects with
 //                                (optional until the worker is deployed)
+//   DEMO_DATA                    'true' to also apply db/seeds/*.sql (fictional
+//                                demo clients; preview only)
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -17,6 +19,7 @@ import pg from 'pg';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'db', 'migrations');
+const SEEDS_DIR = path.join(__dirname, '..', 'db', 'seeds');
 const AUTHENTICATOR = 'accelerate_authenticator';
 const WORKER = 'accelerate_worker';
 // Arbitrary constant: keeps two overlapping job runs from applying the same file twice.
@@ -58,6 +61,14 @@ async function main() {
       } catch (err) {
         await client.query('rollback');
         throw new Error(`${file} failed: ${err.message}`);
+      }
+    }
+
+    // Fictional demo data for preview. Each seed checks for itself, so re-running is harmless.
+    if (process.env.DEMO_DATA === 'true') {
+      for (const file of (await fs.readdir(SEEDS_DIR)).filter(f => f.endsWith('.sql')).sort()) {
+        console.log(`seeding ${file}`);
+        await client.query(await fs.readFile(path.join(SEEDS_DIR, file), 'utf8'));
       }
     }
 

@@ -129,7 +129,7 @@ erDiagram
 |---|---|
 | `audit_events` | Append-only: `at`, `actor_id`, `acting_as` (role used), `client_id`, `action`, `target_type`, `target_id`, `details`, `request_id`. Written by command endpoints and security-definer functions, never by the browser. |
 | `ai_providers` | Model gateway registry ([01-architecture.md](01-architecture.md#the-model-gateway)). |
-| `ai_calls` | Per call: provider, model, job, tokens, latency, classification ceiling checked, outcome. Prompt/response bodies stored with the owning job under the client's RLS. |
+| `ai_calls` | One row per gateway call, refusals included: provider, model that answered, job, purpose, classification, outcome (`succeeded`, `refused`, `failed`), tokens, latency. Written only by the worker (`record_ai_call`); provider choice by `ai_route()`. Prompt/response bodies are not stored here; they stay with the owning job under the client's RLS. |
 | `notifications` | In-app notifications (review assigned, comment on my work, job awaiting input, change impact). |
 | `email_outbox` | Queued reminder and notification emails with `template`, `client_id`, recipient, `sent_at`, provider message id; per-client templates and on/off settings live on `clients`. |
 | `jobs` | Background work for the worker: `kind`, `client_id`, `requested_by`, `payload`, `status`, attempts and backoff, result. Readable through RLS by the requester and the client's CTAs. |

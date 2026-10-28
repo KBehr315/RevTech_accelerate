@@ -27,7 +27,8 @@ export MSYS_NO_PATHCONV=1
 export PYTHONIOENCODING=utf-8
 
 ENVIRONMENT=${1:?usage: infra/deploy.sh <environment>   e.g. preview}
-HERE=$(cd "$(dirname "$0")" && pwd)
+# pwd -W gives the Windows form (C:/Users/...) in Git Bash; the Windows az CLI can't read /c/Users/... paths.
+HERE=$(cd "$(dirname "$0")" && (pwd -W 2>/dev/null || pwd))
 PARAMS="$HERE/env/$ENVIRONMENT.bicepparam"
 # shellcheck source=env/preview.env
 source "$HERE/env/$ENVIRONMENT.env"
@@ -113,4 +114,5 @@ echo
 echo "App:              https://$(output apiFqdn)"
 echo "Deploy client id: $(output deployClientId)   (AZURE_CLIENT_ID in .github/workflows/deploy-azure.yml)"
 echo "Blob storage:     $(output storageBlobUrl)"
+echo "Monitoring:       Application Insights $(output appInsightsName) in $RG"
 echo "Check the worker: Platform administration > Overview > Run health check"
