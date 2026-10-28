@@ -117,7 +117,7 @@ CI gates the deploy: unit + SQL + API tests must pass before the image is built;
 | Demo client | Fictional "Meridian Aerostructures", FI/CO |
 | Preview deployment | Phase 0 deploys to accelerate.revtech.consulting, replacing the compliance app; its data is dropped without export |
 | Second demo client | Fictional "Calder Defense Systems" (FI, subcontractor), to show switching and isolation |
-| Malware scanning | Defender for Storage, pending Ryan's approval (cost and enablement). Until then a preview-only setting marks uploads "Not scanned"; scanning is required wherever real client files are held |
+| Malware scanning | Not used: Kelly treats uploaded files as clean. Scanning stays off in preview (uploads labeled "Not scanned"), and the library accepts only formats without macros or executables (DOCX, PPTX, XLSX, PDF, PNG, JPG, TXT, CSV). Defender for Storage support stays in the code, switched off; turning scanning off outside preview needs a migration, to be revisited before real client files |
 | Embeddings (semantic search) | Azure OpenAI in RevTech's own Azure subscription, so text stays inside RevTech's tenant |
 | OCR (scans, screenshots) | Claude through the model gateway, with the same classification checks as every AI call |
 | Phase 1 demo files | Kelly provides sample documents; preview holds no real client data, so they are fictionalized first |
