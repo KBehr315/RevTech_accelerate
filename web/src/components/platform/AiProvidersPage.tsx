@@ -30,7 +30,7 @@ const EMPTY: Draft = {
   name: '',
   kind: 'anthropic',
   model: '',
-  keyVaultSecret: '',
+  keyVaultSecret: 'anthropic-api-key',
   endpoint: '',
   maxClassification: 'internal',
   isEnabled: false,
@@ -155,11 +155,11 @@ export function AiProvidersPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="ai-model">Model</Label>
-                  <Input id="ai-model" placeholder="claude-opus-5-5" value={draft.model} onChange={(e) => setDraft({ ...draft, model: e.target.value })} />
+                  <Input id="ai-model" placeholder="Empty = claude-opus-5-5" value={draft.model} onChange={(e) => setDraft({ ...draft, model: e.target.value })} />
                 </div>
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="ai-secret">Key Vault secret name</Label>
-                  <Input id="ai-secret" placeholder="anthropic-api-key" value={draft.keyVaultSecret} onChange={(e) => setDraft({ ...draft, keyVaultSecret: e.target.value })} />
+                  <Input id="ai-secret" value={draft.keyVaultSecret} onChange={(e) => setDraft({ ...draft, keyVaultSecret: e.target.value })} />
                 </div>
               </div>
               <div className="flex flex-col gap-1">
@@ -200,7 +200,7 @@ export function AiProvidersPage() {
               <ErrorText error={save.error} />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={close}>Cancel</Button>
-                <Button type="submit" disabled={!draft.name.trim() || save.isPending}>Save</Button>
+                <Button type="submit" disabled={!draft.name.trim() || !draft.keyVaultSecret.trim() || save.isPending}>Save</Button>
               </DialogFooter>
             </form>
           )}
