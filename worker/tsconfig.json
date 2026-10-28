@@ -13,5 +13,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["*.ts", "ai/*.ts"], "exclude": ["*.test.ts", "ai/*.test.ts"]
+  "include": ["*.ts", "ai/*.ts", "extract/*.ts"], "exclude": ["*.test.ts", "ai/*.test.ts", "extract/*.test.ts"]
 }

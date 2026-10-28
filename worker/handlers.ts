@@ -1,9 +1,10 @@
 // One handler per job kind. Each phase of the roadmap adds its own here
 // (source extraction, generation, rendering, reminders, …).
 
-import { defenderVerdict } from '../server/storage.ts'
+import { defenderVerdict, readBlob } from '../server/storage.ts'
 import { anthropicAdapter } from './ai/anthropic.ts'
 import { createGateway, type Adapter } from './ai/gateway.ts'
+import { extract } from './extract/index.ts'
 import type { Handler } from './queue.ts'
 
 /** What handlers reach outside the database, replaced by stand-ins in tests. */
@@ -12,11 +13,13 @@ export type Deps = {
   adapters: Record<string, Adapter>
   /** Defender for Storage's verdict on a blob, or null while there is none (server/storage.ts). */
   scanVerdict: (blobPath: string) => Promise<'clean' | 'infected' | 'failed' | null>
+  /** A stored file's bytes (server/storage.ts). */
+  readBlob: (blobPath: string) => Promise<Buffer>
 }
 
-export const deps: Deps = { adapters: { anthropic: anthropicAdapter }, scanVerdict: defenderVerdict }
+export const deps: Deps = { adapters: { anthropic: anthropicAdapter }, scanVerdict: defenderVerdict, readBlob }
 
-export function makeHandlers({ adapters, scanVerdict }: Deps): Record<string, Handler> {
+export function makeHandlers({ adapters, scanVerdict, readBlob }: Deps): Record<string, Handler> {
   return {
     /** Confirms the worker can reach the database and act as the requester. */
     health_check: async (job, { asRequester, workerId }) => {
@@ -65,6 +68,43 @@ export function makeHandlers({ adapters, scanVerdict }: Deps): Record<string, Ha
       if (!result) throw new Error('No malware scan result yet. Is Defender for Storage enabled on the storage account?')
       await db.query('select public.record_scan_result($1, $2)', [fileId, result])
       return { result }
+    },
+
+    /**
+     * Reads a version's file into searchable chunks (worker/extract/). Queued
+     * once the scan allows it. A file that can't be parsed is recorded as
+     * failed, with the reason, rather than retried; a storage error is retried.
+     */
+    extract_version: async (job, { db }) => {
+      const versionId = String(job.payload.version_id)
+      const [target] = (
+        await db.query<{ blob_path: string; filename: string; scan_status: string }>(
+          'select * from public.version_to_extract($1)',
+          [versionId],
+        )
+      ).rows
+      if (!target) return { skipped: 'The version or its file no longer exists.' }
+      if (!['clean', 'not_scanned'].includes(target.scan_status)) return { skipped: `Scan status is ${target.scan_status}.` }
+
+      await db.query(`select public.set_extraction_status($1, 'running')`, [versionId])
+      const buffer = await readBlob(target.blob_path)
+      let result
+      try {
+        result = await extract(buffer, target.filename)
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err)
+        await db.query(`select public.set_extraction_status($1, 'failed', $2)`, [versionId, reason])
+        return { failed: reason }
+      }
+      const [{ saved }] = (
+        await db.query<{ saved: number }>('select public.save_extraction($1, $2, $3, $4) as saved', [
+          versionId,
+          result.status,
+          result.detail,
+          JSON.stringify(result.chunks),
+        ])
+      ).rows
+      return { status: result.status, chunks: saved, detail: result.detail }
     },
   }
 }

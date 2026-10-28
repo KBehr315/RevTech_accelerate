@@ -12,7 +12,7 @@ let cta: string
 let client: string
 let verdict: 'clean' | 'infected' | 'failed' | null
 const quiet = { info: () => {}, error: () => {} }
-const handlers = makeHandlers({ adapters: {}, scanVerdict: async () => verdict })
+const handlers = makeHandlers({ adapters: {}, scanVerdict: async () => verdict, readBlob: async () => Buffer.from('') })
 
 beforeAll(async () => {
   pglite = await createDb()

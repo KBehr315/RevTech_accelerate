@@ -45,3 +45,10 @@ export async function defenderVerdict(blobPath: string): Promise<'clean' | 'infe
       return 'failed'
   }
 }
+
+/** A whole blob in memory, for the worker's readers (uploads are capped at max_upload_mb). */
+export async function readBlob(blobPath: string): Promise<Buffer> {
+  const files = filesContainer()
+  if (!files) throw new Error('File storage is not configured (STORAGE_BLOB_URL).')
+  return files.getBlobClient(blobPath).downloadToBuffer()
+}

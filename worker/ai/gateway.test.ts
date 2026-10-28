@@ -173,7 +173,7 @@ describe('ai_provider_test job', () => {
     const [job] = await as(pglite, admin)('select * from request_ai_provider_test($1)', [p])
     expect(job.max_attempts).toBe(1)
 
-    await runOnce(db, 'test-worker', makeHandlers({ adapters: { anthropic: fake }, scanVerdict: async () => null }), { log: quiet })
+    await runOnce(db, 'test-worker', makeHandlers({ adapters: { anthropic: fake }, scanVerdict: async () => null, readBlob: async () => Buffer.from('') }), { log: quiet })
 
     const [done] = await sql(pglite, 'select status, result from jobs where id = $1', [job.id])
     expect(done).toMatchObject({ status: 'succeeded', result: { provider: 'Job test', reply: 'I can read this.' } })

@@ -1,22 +1,33 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Download, Upload } from 'lucide-react'
+import { Download, ExternalLink, Search, Upload } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input, Label } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/common/PageHeader'
-import { downloadFile, useClientAssets, useUpload, type LibraryAsset } from '@/hooks/useLibrary'
+import {
+  downloadFile,
+  openPdfAtPage,
+  useClientAssets,
+  useLibrarySearch,
+  useUpload,
+  type LibraryAsset,
+} from '@/hooks/useLibrary'
 import {
   AI_USE_LABELS,
   ASSET_APPROVAL_LABELS,
   CLASSIFICATION_LABELS,
+  EXTRACTION_STATUS_LABELS,
   SCAN_STATUS_LABELS,
+  SCOPE_LABELS,
   UPLOAD_EXTENSIONS,
   formatBytes,
+  locatorLabel,
 } from '@/lib/labels'
 import { cn, formatDate } from '@/lib/utils'
-import type { ScanStatus } from '@/types/domain'
+import type { ExtractionStatus, ScanStatus, SearchResult } from '@/types/domain'
 import { useWorkspace } from './workspace'
 
 type Pending = { key: string; name: string; status: 'waiting' | 'uploading' | 'done' | 'failed'; error?: string }
@@ -27,6 +38,15 @@ const SCAN_VARIANT: Record<ScanStatus, 'success' | 'warning' | 'danger' | 'neutr
   infected: 'danger',
   failed: 'danger',
   not_scanned: 'warning',
+}
+
+const EXTRACTION_VARIANT: Record<ExtractionStatus, 'success' | 'warning' | 'danger' | 'neutral'> = {
+  pending: 'neutral',
+  running: 'neutral',
+  done: 'success',
+  failed: 'danger',
+  skipped: 'neutral',
+  needs_ocr: 'warning',
 }
 
 const extensionOf = (name: string) => name.split('.').pop()?.toLowerCase() ?? ''
@@ -44,6 +64,7 @@ export function LibraryPage() {
         description={`Source material for ${client.name}'s training. Files here are Client-Specific: only ${client.name}'s members can see them.`}
       />
       {canUpload && <UploadArea clientId={client.id} />}
+      <LibrarySearch clientId={client.id} />
       <Card>
         <CardContent className="p-0">
           {isLoading && <Skeleton className="m-4 h-24" />}
@@ -165,7 +186,15 @@ function AssetRow({ asset }: { asset: LibraryAsset }) {
           </Badge>
           <Badge variant={asset.ai_use === 'generation' ? 'success' : 'warning'}>{AI_USE_LABELS[asset.ai_use]}</Badge>
           {file && <Badge variant={SCAN_VARIANT[file.scan_status]}>{SCAN_STATUS_LABELS[file.scan_status]}</Badge>}
+          {asset.current && (
+            <Badge variant={EXTRACTION_VARIANT[asset.current.extraction_status]} title={asset.current.extraction_detail ?? undefined}>
+              {EXTRACTION_STATUS_LABELS[asset.current.extraction_status]}
+            </Badge>
+          )}
         </div>
+        {asset.current?.extraction_detail && asset.current.extraction_status !== 'done' && (
+          <p className="mt-1 text-xs text-slate-500">{asset.current.extraction_detail}</p>
+        )}
       </div>
       {file && (
         <Button
@@ -184,6 +213,106 @@ function AssetRow({ asset }: { asset: LibraryAsset }) {
           Download
         </Button>
       )}
+    </li>
+  )
+}
+
+function LibrarySearch({ clientId }: { clientId: string }) {
+  const [draft, setDraft] = useState('')
+  const [query, setQuery] = useState('')
+  const { data: results, isFetching, error } = useLibrarySearch(clientId, query)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Search the library</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <form
+          role="search"
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            setQuery(draft.trim())
+          }}
+        >
+          <Label htmlFor="library-search" className="sr-only">Search the library</Label>
+          <Input
+            id="library-search"
+            placeholder='e.g. accrual reversal, FB50, "cost center"'
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <Button type="submit" disabled={draft.trim().length < 2}>
+            <Search className="h-4 w-4" aria-hidden />
+            Search
+          </Button>
+        </form>
+        {isFetching && <p className="text-sm text-slate-500">Searching…</p>}
+        {error && <p className="text-sm text-status-red">{(error as Error).message}</p>}
+        {results && !isFetching && (
+          <div aria-live="polite">
+            {results.length === 0 ? (
+              <p className="text-sm text-slate-500">No passages match "{query}". Files still being read won't show up yet.</p>
+            ) : (
+              <ul className="flex flex-col divide-y divide-border">
+                {results.map((result) => <SearchResultRow key={result.chunk_id} result={result} />)}
+              </ul>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+/** The snippet with matches (marked [[ and ]] by search_library) highlighted, without injecting HTML. */
+function Snippet({ text }: { text: string }) {
+  const parts = text.split(/\[\[|\]\]/)
+  return (
+    <p className="text-sm text-slate-700">
+      {parts.map((part, i) => (i % 2 === 1 ? <mark key={i} className="rounded bg-yellow-100 px-0.5">{part}</mark> : part))}
+    </p>
+  )
+}
+
+function SearchResultRow({ result }: { result: SearchResult }) {
+  const [busy, setBusy] = useState(false)
+  const run = (action: () => Promise<void>) => {
+    setBusy(true)
+    action()
+      .catch((err: Error) => toast.error(err.message))
+      .finally(() => setBusy(false))
+  }
+  const isPdf = result.filename.toLowerCase().endsWith('.pdf')
+
+  return (
+    <li className="flex flex-col gap-2 py-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="font-medium text-slate-900">
+          {result.title} <span className="text-xs font-normal text-slate-500">· {locatorLabel(result.locator)}</span>
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {result.scope !== 'client' && <Badge>{SCOPE_LABELS[result.scope]}</Badge>}
+          <Badge variant={result.approval_status === 'approved' ? 'success' : 'neutral'}>
+            {ASSET_APPROVAL_LABELS[result.approval_status]}
+          </Badge>
+          <Badge variant="neutral">{CLASSIFICATION_LABELS[result.security_classification]}</Badge>
+        </div>
+      </div>
+      <Snippet text={result.snippet} />
+      <div className="flex flex-wrap gap-2">
+        {isPdf && result.locator.page && (
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => run(() => openPdfAtPage(result.file_id, result.locator.page!))}>
+            <ExternalLink className="h-4 w-4" aria-hidden />
+            Open at page {result.locator.page}
+          </Button>
+        )}
+        <Button variant="outline" size="sm" disabled={busy} onClick={() => run(() => downloadFile(result.file_id, result.filename))}>
+          <Download className="h-4 w-4" aria-hidden />
+          Download {result.filename}
+        </Button>
+      </div>
     </li>
   )
 }
