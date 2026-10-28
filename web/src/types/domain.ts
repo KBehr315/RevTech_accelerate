@@ -186,6 +186,38 @@ export type AssetLifecycle = 'active' | 'superseded' | 'expired' | 'archived'
 export type AssetApproval = 'draft' | 'in_review' | 'approved' | 'rejected'
 export type AiUse = 'generation' | 'reference' | 'human_approval_required' | 'not_approved'
 export type ScanStatus = 'pending' | 'clean' | 'infected' | 'failed' | 'not_scanned'
+export type ExtractionStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped' | 'needs_ocr'
+
+/** Where a passage is in its file (worker/extract/): page, slide, sheet range, heading path or lines. */
+export type Locator = {
+  page?: number
+  slide?: number
+  title?: string
+  sheet?: string
+  range?: string
+  heading?: string[]
+  table?: number
+  rows?: string
+  lines?: string
+}
+
+/** A row from search_library() (db/migrations/00104). */
+export type SearchResult = {
+  chunk_id: string
+  asset_id: string
+  title: string
+  scope: KnowledgeScope
+  security_classification: Classification
+  approval_status: AssetApproval
+  lifecycle_status: AssetLifecycle
+  ai_use: AiUse
+  version_no: number
+  file_id: string
+  filename: string
+  locator: Locator
+  snippet: string
+  rank: number
+}
 
 export type SourceFile = {
   id: string
@@ -228,7 +260,8 @@ export type KnowledgeAssetVersion = {
   source_file_id: string | null
   metadata: Record<string, unknown>
   change_note: string | null
-  extraction_status: 'pending' | 'running' | 'done' | 'failed' | 'skipped'
+  extraction_status: ExtractionStatus
+  extraction_detail: string | null
   created_by: string | null
   created_at: string
 }

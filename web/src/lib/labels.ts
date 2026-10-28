@@ -3,7 +3,9 @@ import type {
   AiUse,
   AssetApproval,
   AssetLifecycle,
+  ExtractionStatus,
   KnowledgeScope,
+  Locator,
   ScanStatus,
   ApprovalStage,
   Classification,
@@ -148,4 +150,26 @@ export function formatBytes(bytes: number | null): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+export const EXTRACTION_STATUS_LABELS: Record<ExtractionStatus, string> = {
+  pending: 'Waiting to be read',
+  running: 'Reading…',
+  done: 'Read',
+  failed: "Couldn't be read",
+  skipped: 'Not read',
+  needs_ocr: 'Needs reading (scan or image)',
+}
+
+/** "Page 3", "Slide 7: Allocations", "Sheet Steps, A2:H40", "Purpose › Scope, table 1 rows 2-9", "Lines 10-42". */
+export function locatorLabel(locator: Locator): string {
+  if (locator.page) return `Page ${locator.page}`
+  if (locator.slide) return `Slide ${locator.slide}${locator.title ? `: ${locator.title}` : ''}`
+  if (locator.sheet) return `Sheet ${locator.sheet}${locator.range ? `, ${locator.range}` : ''}`
+  const parts: string[] = []
+  if (locator.heading?.length) parts.push(locator.heading.join(' › '))
+  if (locator.table) parts.push(`table ${locator.table}${locator.rows ? ` rows ${locator.rows}` : ''}`)
+  else if (locator.rows) parts.push(`Rows ${locator.rows}`)
+  if (locator.lines) parts.push(`Lines ${locator.lines}`)
+  return parts.join(', ') || 'Start of file'
 }

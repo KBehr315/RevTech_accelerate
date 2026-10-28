@@ -21,6 +21,7 @@ import type {
   PlatformRoleGrant,
   PlatformSettings,
   Profile,
+  SearchResult,
   SourceFile,
 } from './domain'
 
@@ -190,6 +191,7 @@ export type Database = {
       activate_client: { Args: { p_client_id: string }; Returns: Client }
       request_health_check: { Args: Record<string, never>; Returns: Job }
       request_ai_provider_test: { Args: { p_provider_id: string }; Returns: Job }
+      search_library: { Args: { p_client_id: string | null; p_query: string; p_limit?: number }; Returns: SearchResult[] }
     }
   }
 }
