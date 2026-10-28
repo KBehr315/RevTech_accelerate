@@ -3,8 +3,9 @@
 
 import { defenderVerdict, readBlob } from '../server/storage.ts'
 import { anthropicAdapter } from './ai/anthropic.ts'
-import { createGateway, type Adapter } from './ai/gateway.ts'
-import { extract } from './extract/index.ts'
+import { AiRefusedError, createGateway, type Adapter, type Classification } from './ai/gateway.ts'
+import { extract, type Chunk } from './extract/index.ts'
+import { ocrImage, ocrPdfPages, type Complete } from './extract/ocr.ts'
 import type { Handler } from './queue.ts'
 
 /** What handlers reach outside the database, replaced by stand-ins in tests. */
@@ -72,39 +73,88 @@ export function makeHandlers({ adapters, scanVerdict, readBlob }: Deps): Record<
 
     /**
      * Reads a version's file into searchable chunks (worker/extract/). Queued
-     * once the scan allows it. A file that can't be parsed is recorded as
-     * failed, with the reason, rather than retried; a storage error is retried.
+     * once the scan allows it. Pages with no text layer (images, scanned PDF
+     * pages) are transcribed by an AI model through the gateway, as the
+     * uploader. A file that can't be parsed, or that the gateway refuses to
+     * send, is recorded with the reason rather than retried; other errors are
+     * retried, and recorded as failed on the last attempt.
      */
-    extract_version: async (job, { db }) => {
+    extract_version: async (job, ctx) => {
+      const { db } = ctx
       const versionId = String(job.payload.version_id)
       const [target] = (
-        await db.query<{ blob_path: string; filename: string; scan_status: string }>(
-          'select * from public.version_to_extract($1)',
-          [versionId],
-        )
+        await db.query<{
+          blob_path: string
+          filename: string
+          scan_status: string
+          client_id: string | null
+          security_classification: Classification
+        }>('select * from public.version_to_extract($1)', [versionId])
       ).rows
       if (!target) return { skipped: 'The version or its file no longer exists.' }
       if (!['clean', 'not_scanned'].includes(target.scan_status)) return { skipped: `Scan status is ${target.scan_status}.` }
 
-      await db.query(`select public.set_extraction_status($1, 'running')`, [versionId])
-      const buffer = await readBlob(target.blob_path)
-      let result
+      const status = (value: string, detail: string | null = null) =>
+        db.query('select public.set_extraction_status($1, $2, $3)', [versionId, value, detail])
+      await status('running')
       try {
-        result = await extract(buffer, target.filename)
+        const buffer = await readBlob(target.blob_path)
+        let result
+        try {
+          result = await extract(buffer, target.filename)
+        } catch (err) {
+          const reason = err instanceof Error ? err.message : String(err)
+          await status('failed', reason)
+          return { failed: reason }
+        }
+
+        let { status: outcome, chunks, detail } = result
+        const ext = target.filename.split('.').pop()?.toLowerCase()
+        const isImage = ext === 'png' || ext === 'jpg' || ext === 'jpeg'
+        const imagePages = result.imagePages ?? []
+        if (isImage || imagePages.length) {
+          const gateway = createGateway(db, adapters)
+          const complete: Complete = (request) =>
+            gateway.complete(job, ctx, {
+              ...request,
+              purpose: 'ocr',
+              classification: target.security_classification,
+              clientId: target.client_id,
+            })
+          try {
+            const read: Chunk[] = isImage
+              ? await ocrImage(complete, buffer, ext === 'png' ? 'image/png' : 'image/jpeg')
+              : await ocrPdfPages(complete, buffer, imagePages)
+            const textPages = new Set(chunks.map((c) => c.locator.page)).size
+            // Text pages and transcribed pages together, in page order.
+            chunks = [...chunks, ...read].sort((a, b) => Number(a.locator.page ?? 0) - Number(b.locator.page ?? 0))
+            outcome = 'done'
+            const scanned = `${imagePages.length} scanned page${imagePages.length === 1 ? '' : 's'} read by AI.`
+            detail = isImage
+              ? 'Text read from the image by AI.'
+              : textPages
+                ? `Read ${textPages} page${textPages === 1 ? '' : 's'}; ${scanned}`
+                : scanned
+          } catch (err) {
+            if (!(err instanceof AiRefusedError)) throw err
+            detail = `${detail} The scanned parts weren't read: ${err.message}`
+          }
+        }
+
+        const [{ saved }] = (
+          await db.query<{ saved: number }>('select public.save_extraction($1, $2, $3, $4) as saved', [
+            versionId,
+            outcome,
+            detail,
+            JSON.stringify(chunks),
+          ])
+        ).rows
+        return { status: outcome, chunks: saved, detail }
       } catch (err) {
         const reason = err instanceof Error ? err.message : String(err)
-        await db.query(`select public.set_extraction_status($1, 'failed', $2)`, [versionId, reason])
-        return { failed: reason }
+        await status(job.attempts >= job.max_attempts ? 'failed' : 'pending', reason)
+        throw err
       }
-      const [{ saved }] = (
-        await db.query<{ saved: number }>('select public.save_extraction($1, $2, $3, $4) as saved', [
-          versionId,
-          result.status,
-          result.detail,
-          JSON.stringify(result.chunks),
-        ])
-      ).rows
-      return { status: result.status, chunks: saved, detail: result.detail }
     },
   }
 }

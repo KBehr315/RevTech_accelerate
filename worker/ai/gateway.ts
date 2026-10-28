@@ -29,7 +29,11 @@ export type CompletionRequest = {
   providerId?: string
   system?: string
   messages: { role: 'user' | 'assistant'; content: string }[]
+  /** Files sent with the last user message: images (PNG, JPEG) and PDFs. */
+  attachments?: { mediaType: 'image/png' | 'image/jpeg' | 'application/pdf'; data: Buffer }[]
   maxTokens?: number
+  /** Overrides the provider's configured effort, e.g. 'low' for transcription. */
+  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 }
 
 export type Completion = {
