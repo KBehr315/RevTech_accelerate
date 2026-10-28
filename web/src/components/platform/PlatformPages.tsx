@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input, Label } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AuditTable } from '@/components/common/AuditTable'
 import { ErrorText, PageHeader } from '@/components/common/PageHeader'
@@ -19,11 +20,12 @@ import {
   useSetPlatformRole,
   useSetProfileActive,
   useUpdatePlatformSettings,
+  type PersonRow,
 } from '@/hooks/usePlatform'
-import { CLASSIFICATION_LABELS, CLIENT_STATUS_LABELS, PLATFORM_ROLE_LABELS } from '@/lib/labels'
+import { CLASSIFICATION_LABELS, CLIENT_ROLE_LABELS, CLIENT_STATUS_LABELS, PLATFORM_ROLE_LABELS } from '@/lib/labels'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
-import type { PlatformRole } from '@/types/domain'
+import type { ClientRole, PlatformRole } from '@/types/domain'
 import { NewClientButton } from './NewClientDialog'
 
 export function PlatformHomePage() {
@@ -140,10 +142,13 @@ export function PeoplePage() {
   const setRole = useSetPlatformRole()
   const setActive = useSetProfileActive()
   const [filter, setFilter] = useState('')
+  const [company, setCompany] = useState(ALL_COMPANIES)
 
-  const shown = people?.filter((p) =>
+  const matching = people?.filter((p) =>
     `${p.full_name} ${p.email}`.toLowerCase().includes(filter.trim().toLowerCase()),
   )
+  const companies = byCompany(people ?? [])
+  const shown = byCompany(matching ?? []).filter((c) => company === ALL_COMPANIES || c.id === company)
 
   function run(promise: Promise<unknown>) {
     promise.catch((err: Error) => toast.error(err.message))
@@ -152,60 +157,114 @@ export function PeoplePage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="People & roles" helpKey="platform-people" />
-      <div className="max-w-sm">
-        <Label htmlFor="people-filter" className="sr-only">Filter people</Label>
-        <Input id="people-filter" placeholder="Filter by name or email" value={filter} onChange={(e) => setFilter(e.target.value)} />
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="sm:w-72">
+          <Label htmlFor="people-filter" className="sr-only">Filter people</Label>
+          <Input id="people-filter" placeholder="Filter by name or email" value={filter} onChange={(e) => setFilter(e.target.value)} />
+        </div>
+        <div className="sm:w-72">
+          <Label htmlFor="people-company" className="sr-only">Company</Label>
+          <Select value={company} onValueChange={setCompany}>
+            <SelectTrigger id="people-company">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_COMPANIES}>All companies</SelectItem>
+              {companies.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name} ({c.people.length})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
-      <Card>
-        <CardContent className="p-0">
-          {isLoading && <Skeleton className="m-4 h-24" />}
-          <ul className="divide-y divide-border">
-            {shown?.map((p) => {
-              const roles = new Set(p.platform_role_grants.map((g) => g.role))
-              const isMe = p.id === me?.id
-              return (
-                <li key={p.id} className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-slate-900">{p.full_name}</p>
-                      {p.is_guest && <Badge variant="neutral">Guest</Badge>}
-                      {!p.is_active && <Badge variant="danger">Deactivated</Badge>}
+      {isLoading && <Skeleton className="h-24" />}
+      {people && shown.length === 0 && <p className="text-sm text-slate-500">Nobody matches.</p>}
+      {shown.map((c) => (
+        <Card key={c.id}>
+          <CardHeader>
+            <CardTitle>
+              {c.name} <span className="text-sm font-normal text-slate-500">· {c.people.length}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ul className="divide-y divide-border border-t border-border">
+              {c.people.map(({ person: p, clientRoles }) => {
+                const roles = new Set(p.platform_role_grants.map((g) => g.role))
+                const isMe = p.id === me?.id
+                return (
+                  <li key={p.id} className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-slate-900">{p.full_name}</p>
+                        {p.is_guest && <Badge variant="neutral">Guest</Badge>}
+                        {!p.is_active && <Badge variant="danger">Deactivated</Badge>}
+                      </div>
+                      <p className="truncate text-xs text-slate-500">{p.email}</p>
+                      {clientRoles.length > 0 && (
+                        <p className="text-xs text-slate-500">{clientRoles.map((r) => CLIENT_ROLE_LABELS[r]).join(', ')}</p>
+                      )}
                     </div>
-                    <p className="truncate text-xs text-slate-500">{p.email}</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-4">
-                    {PLATFORM_ROLES.map((role) => {
-                      const id = `${p.id}-${role}`
-                      const locked = isMe && role === 'platform_admin'
-                      return (
-                        <label key={role} htmlFor={id} className="flex items-center gap-2 text-sm">
-                          <Checkbox
-                            id={id}
-                            checked={roles.has(role)}
-                            disabled={locked || setRole.isPending}
-                            onCheckedChange={(on) => run(setRole.mutateAsync({ profileId: p.id, role, granted: on === true }))}
-                          />
-                          {PLATFORM_ROLE_LABELS[role]}
-                        </label>
-                      )
-                    })}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={isMe || setActive.isPending}
-                      onClick={() => run(setActive.mutateAsync({ profileId: p.id, active: !p.is_active }))}
-                    >
-                      {p.is_active ? 'Deactivate' : 'Reactivate'}
-                    </Button>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        </CardContent>
-      </Card>
+                    <div className="flex flex-wrap items-center gap-4">
+                      {PLATFORM_ROLES.map((role) => {
+                        const id = `${c.id}-${p.id}-${role}`
+                        const locked = isMe && role === 'platform_admin'
+                        return (
+                          <label key={role} htmlFor={id} className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              id={id}
+                              checked={roles.has(role)}
+                              disabled={locked || setRole.isPending}
+                              onCheckedChange={(on) => run(setRole.mutateAsync({ profileId: p.id, role, granted: on === true }))}
+                            />
+                            {PLATFORM_ROLE_LABELS[role]}
+                          </label>
+                        )
+                      })}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isMe || setActive.isPending}
+                        onClick={() => run(setActive.mutateAsync({ profileId: p.id, active: !p.is_active }))}
+                      >
+                        {p.is_active ? 'Deactivate' : 'Reactivate'}
+                      </Button>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   )
+}
+
+const ALL_COMPANIES = 'all'
+const REVTECH = 'revtech'
+
+type CompanyGroup = { id: string; name: string; people: { person: PersonRow; clientRoles: ClientRole[] }[] }
+
+/**
+ * People under each client they belong to (active memberships), sorted by client
+ * name. RevTech comes first: everyone with a platform role, and anyone in no client.
+ */
+function byCompany(people: PersonRow[]): CompanyGroup[] {
+  const revtech: CompanyGroup = { id: REVTECH, name: 'RevTech', people: [] }
+  const clients = new Map<string, CompanyGroup>()
+  for (const person of people) {
+    const memberships = person.memberships.filter((m) => m.is_active && m.client)
+    if (person.platform_role_grants.length > 0 || memberships.length === 0) revtech.people.push({ person, clientRoles: [] })
+    for (const m of memberships) {
+      const group = clients.get(m.client!.id) ?? { id: m.client!.id, name: m.client!.name, people: [] }
+      group.people.push({ person, clientRoles: m.roles })
+      clients.set(group.id, group)
+    }
+  }
+  const sorted = [...clients.values()].sort((a, b) => a.name.localeCompare(b.name))
+  return revtech.people.length > 0 ? [revtech, ...sorted] : sorted
 }
 
 export function PlatformAuditPage() {
