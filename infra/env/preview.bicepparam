@@ -21,7 +21,7 @@ param entraClientId = '3dc30934-8c49-4f0c-a39a-2d7a54d74e7e'
 // GitHub puts the owner and repo ids in the subject, so a recreated repo with the same name isn't trusted.
 param githubOidcSubject = 'repo:KBehr315@274071871/RevTech_accelerate@1302924751:ref:refs/heads/master'
 
-// The fictional Meridian Aerostructures client (db/seeds).
+// The fictional demo clients Meridian Aerostructures and Calder Defense Systems (db/seeds).
 param demoData = true
 
 // The retired infra/provision.sh made these role assignments when preview was first set up.
