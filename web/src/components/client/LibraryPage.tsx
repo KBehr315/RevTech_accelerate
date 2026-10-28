@@ -55,6 +55,7 @@ export function LibraryPage() {
           <AssetList
             assets={own.data}
             isLoading={own.isLoading}
+            canReadAgain={canUpload}
             empty={canUpload ? 'Nothing here yet. Upload the first files above.' : 'Nothing has been shared with you here yet.'}
             action={isGka ? (asset) => <PlaceButton asset={asset} choices={copyChoices} label="Copy to…" /> : undefined}
             note={(asset) =>
@@ -83,6 +84,7 @@ export function LibraryPage() {
             <AssetList
               assets={reference.data}
               isLoading={reference.isLoading}
+              canReadAgain
               empty='Nothing in RevTech Reference yet. Use "Copy to…" on a document, or upload in the Global Library.'
             />
           </TabsContent>

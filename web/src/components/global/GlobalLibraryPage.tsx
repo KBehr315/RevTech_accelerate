@@ -74,6 +74,7 @@ export function GlobalLibraryPage() {
             <AssetList
               assets={lists[bucket].data}
               isLoading={lists[bucket].isLoading}
+              canReadAgain
               empty={`Nothing in ${SCOPE_LABELS[bucket]}.`}
               action={(asset) => (
                 <PlaceButton

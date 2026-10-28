@@ -229,6 +229,7 @@ export type Database = {
         Args: { p_asset_id: string; p_scope: KnowledgeScope; p_client_ids?: string[]; p_group_ids?: string[] }
         Returns: KnowledgeAsset
       }
+      request_extraction: { Args: { p_asset_id: string }; Returns: Job }
       asset_copies: { Args: { p_asset_ids: string[] }; Returns: { copied_from_asset_id: string; scope: KnowledgeScope }[] }
       client_shared_assets: {
         Args: { p_client_id: string }
