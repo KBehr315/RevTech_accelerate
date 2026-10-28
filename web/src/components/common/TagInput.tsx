@@ -6,9 +6,10 @@ interface TagInputProps {
   tags: string[]
   onChange: (tags: string[]) => void
   placeholder?: string
+  id?: string
 }
 
-export function TagInput({ tags, onChange, placeholder = 'Add a topic and press Enter…' }: TagInputProps) {
+export function TagInput({ tags, onChange, placeholder = 'Add a topic and press Enter…', id }: TagInputProps) {
   const [draft, setDraft] = useState('')
 
   function addTag(raw: string) {
@@ -47,6 +48,7 @@ export function TagInput({ tags, onChange, placeholder = 'Add a topic and press 
         ))}
       </div>
       <Input
+        id={id}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={handleKeyDown}

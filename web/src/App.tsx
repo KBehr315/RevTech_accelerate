@@ -4,16 +4,28 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { queryClient } from '@/lib/queryClient'
 import { useAuthStore } from '@/store/authStore'
+import { useIdleSignOut } from '@/hooks/useIdleSignOut'
 import { LoginPage } from '@/components/auth/LoginPage'
-import { ProtectedRoute, AdminRoute } from '@/components/auth/ProtectedRoute'
+import { ProtectedRoute, RequirePlatformRole } from '@/components/auth/ProtectedRoute'
 import { AppShell } from '@/components/shell/AppShell'
-import { EmployeeDashboardPage } from '@/components/employee/EmployeeDashboardPage'
-import { TrainingPlayerPage } from '@/components/player/TrainingPlayerPage'
-import { DashboardPage } from '@/components/admin/DashboardPage'
-import { ModuleListPage } from '@/components/admin/modules/ModuleListPage'
-import { ModuleEditPage } from '@/components/admin/modules/ModuleEditPage'
-import { AssignmentsPage } from '@/components/admin/assignments/AssignmentsPage'
-import { UsersPage } from '@/components/admin/users/UsersPage'
+import { HomeRedirect } from '@/components/home/HomeRedirect'
+import { ContextPickerPage } from '@/components/home/ContextPickerPage'
+import { MyTrainingPage } from '@/components/home/MyTrainingPage'
+import { GlobalHomePage } from '@/components/global/GlobalHomePage'
+import { ClientGroupsPage } from '@/components/global/ClientGroupsPage'
+import { ClientLayout, RequireClientRole } from '@/components/client/ClientLayout'
+import { ClientHomePage } from '@/components/client/ClientHomePage'
+import { ClientSetupWizard } from '@/components/client/ClientSetupWizard'
+import { MembersPage } from '@/components/client/MembersPage'
+import { ClientAuditPage } from '@/components/client/ClientAuditPage'
+import {
+  ClientsPage,
+  PeoplePage,
+  PlatformAuditPage,
+  PlatformHomePage,
+  PlatformSettingsPage,
+} from '@/components/platform/PlatformPages'
+import { AiProvidersPage } from '@/components/platform/AiProvidersPage'
 
 function App() {
   const initialize = useAuthStore((s) => s.initialize)
@@ -25,22 +37,40 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <IdleSignOut />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={profile ? <Navigate to="/" replace /> : <LoginPage />} />
 
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
-              <Route path="/" element={<EmployeeDashboardPage />} />
-              <Route path="/training/:assignmentId" element={<TrainingPlayerPage />} />
+              <Route path="/" element={<HomeRedirect />} />
+              <Route path="/contexts" element={<ContextPickerPage />} />
+              <Route path="/learn" element={<MyTrainingPage />} />
 
-              <Route element={<AdminRoute />}>
-                <Route path="/admin" element={<DashboardPage />} />
-                <Route path="/admin/modules" element={<ModuleListPage />} />
-                <Route path="/admin/modules/new" element={<ModuleEditPage />} />
-                <Route path="/admin/modules/:moduleId" element={<ModuleEditPage />} />
-                <Route path="/admin/assignments" element={<AssignmentsPage />} />
-                <Route path="/admin/users" element={<UsersPage />} />
+              <Route path="/c/:slug" element={<ClientLayout />}>
+                <Route index element={<ClientHomePage />} />
+                <Route element={<RequireClientRole anyOf={['client_training_admin']} />}>
+                  <Route path="setup" element={<ClientSetupWizard />} />
+                  <Route path="audit" element={<ClientAuditPage />} />
+                </Route>
+                <Route element={<RequireClientRole anyOf={['client_training_admin', 'lms_admin']} />}>
+                  <Route path="members" element={<MembersPage />} />
+                </Route>
+              </Route>
+
+              <Route element={<RequirePlatformRole role="global_knowledge_admin" />}>
+                <Route path="/global" element={<GlobalHomePage />} />
+                <Route path="/global/client-groups" element={<ClientGroupsPage />} />
+              </Route>
+
+              <Route element={<RequirePlatformRole role="platform_admin" />}>
+                <Route path="/platform" element={<PlatformHomePage />} />
+                <Route path="/platform/clients" element={<ClientsPage />} />
+                <Route path="/platform/people" element={<PeoplePage />} />
+                <Route path="/platform/ai-providers" element={<AiProvidersPage />} />
+                <Route path="/platform/audit" element={<PlatformAuditPage />} />
+                <Route path="/platform/settings" element={<PlatformSettingsPage />} />
               </Route>
             </Route>
           </Route>
@@ -51,6 +81,11 @@ function App() {
       <Toaster position="top-right" richColors />
     </QueryClientProvider>
   )
+}
+
+function IdleSignOut() {
+  useIdleSignOut()
+  return null
 }
 
 export default App

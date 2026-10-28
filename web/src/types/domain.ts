@@ -1,125 +1,179 @@
-export type Role = 'admin' | 'employee'
+// Shapes of the platform's records, matching db/migrations/00100_platform_identity_and_tenancy.sql.
 
-export type ModuleContentType = 'in_app' | 'external'
-export type ExternalContentType = 'video' | 'pdf' | 'url'
-export type QuestionType = 'multiple_choice' | 'true_false'
+export type PlatformRole = 'platform_admin' | 'global_knowledge_admin' | 'client_creator'
 
-export type ContentBlock =
-  | { type: 'heading'; text: string }
-  | { type: 'paragraph'; text: string }
-  | { type: 'image'; url: string; alt?: string }
-  | { type: 'video_embed'; url: string }
-  | { type: 'callout'; text: string; tone?: 'info' | 'warning' }
+export type ClientRole = 'client_training_admin' | 'lms_admin' | 'contributor' | 'reviewer' | 'learner'
 
-export type ModuleContent = ContentBlock[]
+/** Ascending sensitivity; the database ranks them in this order. */
+export type Classification =
+  | 'public'
+  | 'internal'
+  | 'confidential'
+  | 'client_confidential'
+  | 'controlled'
+  | 'export_controlled'
 
-export interface QuizOption {
-  id: string
-  text: string
+export type ClientStatus = 'setup' | 'active' | 'archived'
+
+export type SetupStep = 'profile' | 'sap_landscape' | 'organization' | 'branding' | 'governance' | 'review'
+
+export type GovconStatus = 'prime' | 'subcontractor' | 'both' | 'commercial'
+
+export type ApprovalStage = 'contributor' | 'sme' | 'client'
+
+export type AiProviderKind = 'anthropic' | 'bedrock' | 'azure_openai'
+
+export type SapLandscape = {
+  version?: string
+  deployment?: string
+  fiori?: string
+  other_tools?: string
 }
 
-/** Question shape returned to employees — never includes the answer key. */
-export interface QuizQuestionPublic {
-  id: string
-  module_id: string
-  position: number
-  question_type: QuestionType
-  prompt: string
-  options: QuizOption[]
-  points: number
+export type Branding = {
+  primary_color?: string
+  accent_color?: string
 }
 
-/** Full question shape, admin-only (includes correct_option_ids). */
-export interface QuizQuestion extends QuizQuestionPublic {
-  correct_option_ids: string[]
-}
-
-export interface QuizAnswer {
-  question_id: string
-  selected_option_ids: string[]
-}
-
-export interface Profile {
+export type Profile = {
   id: string
   email: string
   full_name: string
-  role: Role
   is_active: boolean
+  is_guest: boolean
   created_at: string
   updated_at: string
 }
 
-export interface Module {
+export type PlatformSettings = {
+  id: boolean
+  environment_name: string
+  max_classification: Classification
+  session_idle_minutes: number
+  updated_at: string
+}
+
+export type PlatformRoleGrant = {
+  profile_id: string
+  role: PlatformRole
+  granted_by: string | null
+  granted_at: string
+}
+
+export type AiProvider = {
   id: string
-  title: string
+  name: string
+  kind: AiProviderKind
+  config: Record<string, unknown>
+  max_classification: Classification
+  cui_approved: boolean
+  is_enabled: boolean
+  retention_terms: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type Client = {
+  id: string
+  name: string
+  slug: string
+  status: ClientStatus
+  setup_step: SetupStep
+  industry: string | null
+  govcon_status: GovconStatus | null
+  sap_landscape: SapLandscape
+  dassian_products: string[]
+  max_classification: Classification
+  allowed_ai_providers: string[]
+  branding: Branding
+  accessibility_requirements: string | null
+  export_control_notes: string | null
+  support_contact: string | null
+  approval_stages: ApprovalStage[]
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type ClientMembership = {
+  client_id: string
+  profile_id: string
+  roles: ClientRole[]
+  is_active: boolean
+  added_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type ClientWorkstream = {
+  id: string
+  client_id: string
+  code: string
+  name: string
   description: string | null
-  content_type: ModuleContentType
-  content_blocks: ModuleContent | null
-  external_content_type: ExternalContentType | null
-  external_url: string | null
-  renewal_period_months: number | null
-  passing_score_pct: number
-  is_published: boolean
-  topics: string[]
-  created_by: string
   created_at: string
   updated_at: string
 }
 
-export interface Assignment {
+export type ClientBusinessRole = {
   id: string
-  module_id: string
-  employee_id: string
-  assigned_by: string
-  due_at: string | null
-  is_active: boolean
+  client_id: string
+  name: string
+  description: string | null
+  workstream_ids: string[]
   created_at: string
   updated_at: string
 }
 
-export interface Attempt {
+export type ClientTerm = {
   id: string
-  assignment_id: string
-  employee_id: string
-  started_at: string
-  completed_at: string | null
-  score_pct: number | null
-  passed: boolean | null
-  answers: QuizAnswer[] | null
-  content_viewed_at: string | null
+  client_id: string
+  client_term: string
+  standard_term: string | null
+  definition: string | null
   created_at: string
   updated_at: string
 }
 
-export interface EmployeeGroup {
+export type ClientGroup = {
   id: string
   name: string
   description: string | null
-  created_by: string
   created_at: string
   updated_at: string
 }
 
-export interface EmployeeGroupMember {
+export type ClientGroupMember = {
   group_id: string
-  employee_id: string
-  added_at: string
+  client_id: string
 }
 
-export interface AssignmentStatus {
-  assignment_id: string
-  module_id: string
-  employee_id: string
-  due_at: string | null
-  is_active: boolean
-  module_title: string
-  renewal_period_months: number | null
-  passing_score_pct: number
-  last_attempt_id: string | null
-  last_completed_at: string | null
-  last_score_pct: number | null
-  last_passed: boolean | null
-  attempt_count: number
-  renewal_due_at: string | null
-  is_overdue: boolean
+export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled'
+
+export type Job = {
+  id: string
+  kind: string
+  client_id: string | null
+  requested_by: string | null
+  payload: Record<string, unknown>
+  status: JobStatus
+  attempts: number
+  max_attempts: number
+  run_after: string
+  last_error: string | null
+  result: Record<string, unknown> | null
+  finished_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type AuditEvent = {
+  id: number
+  at: string
+  actor_id: string | null
+  client_id: string | null
+  action: string
+  target_type: string | null
+  target_id: string | null
+  details: Record<string, unknown>
 }

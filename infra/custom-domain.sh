@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Binds accelerate.revtech.consulting to the app with a free managed certificate.
-# Run after both DNS records printed by infra/provision.sh exist at GoDaddy and
+# Run after the DNS records for the app exist at GoDaddy (CNAME to the app, TXT
+# asuid.<host> with the environment's verification id) and
 # have propagated (nslookup -type=TXT asuid.accelerate.revtech.consulting).
 
 set -euo pipefail

@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 # None of these are secrets. The login is a federated credential on
-# id-accelerate-deploy that only trusts this repo's master branch (infra/provision.sh).
+# id-accelerate-deploy that only trusts this repo's master branch (infra/main.bicep).
 env:
   AZURE_CLIENT_ID: b050ac37-95ec-493c-9e04-2fee6bb941f9   # id-accelerate-deploy
   AZURE_TENANT_ID: c0fdfbc6-f518-47f4-9e98-5517a1259553
@@ -20,6 +20,7 @@ env:
   REGISTRY: acrrevhubpreviewad4fad06
   REGISTRY_RESOURCE_GROUP: rg-revhub-preview
   CONTAINER_APP: ca-accelerate-preview
+  WORKER_APP: ca-accelerate-worker-preview
   MIGRATE_JOB: caj-accelerate-migrate
   IMAGE_NAME: accelerate
 
@@ -28,7 +29,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Nothing deploys unless the isolation tests and checks pass.
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Database and server checks
+        run: |
+          npm ci
+          npm test
+          npm run typecheck
+      - name: Web checks
+        working-directory: web
+        run: |
+          npm ci
+          npm run lint
+          npx tsc -b
+
   build-and-deploy:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -61,7 +85,12 @@ jobs:
           [ "$STATUS" = Succeeded ]
 
       - name: Deploy new image
-        run: az containerapp update -g "$RESOURCE_GROUP" -n "$CONTAINER_APP" --image "$IMAGE" -o none
+        run: |
+          az containerapp update -g "$RESOURCE_GROUP" -n "$CONTAINER_APP" --image "$IMAGE" -o none
+          # The worker exists once infra/deploy.sh has run for this environment.
+          if az containerapp show -g "$RESOURCE_GROUP" -n "$WORKER_APP" -o none 2>/dev/null; then
+            az containerapp update -g "$RESOURCE_GROUP" -n "$WORKER_APP" --image "$IMAGE" -o none
+          fi
 
       - name: Azure logout
         if: always()

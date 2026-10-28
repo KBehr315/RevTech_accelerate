@@ -1,19 +1,30 @@
 {
-  "name": "compliance-lms",
+  "name": "accelerate",
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "API server for the Compliance LMS: serves web/dist, verifies Microsoft sign-in, and forwards database requests to PostgREST.",
+  "description": "API server for the Accelerate training platform: serves web/dist, verifies Microsoft sign-in, and forwards database requests to PostgREST.",
   "scripts": {
-    "start": "node server/index.js",
-    "migrate": "node server/migrate.js"
+    "start": "node server/index.ts",
+    "migrate": "node server/migrate.js",
+    "test": "vitest run db worker",
+    "typecheck": "tsc -p server && tsc -p worker",
+    "worker": "node worker/index.ts"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.18"
   },
   "dependencies": {
     "express": "^5.1.0",
     "jose": "^6.1.0",
     "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.12",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
   }
 }

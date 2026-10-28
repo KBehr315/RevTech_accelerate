@@ -1,140 +1,109 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
 
 export interface HelpEntry {
   title: string
   body: ReactNode
 }
 
-const linkClass = 'text-brand-600 hover:underline'
-
 export const HELP_CONTENT = {
-  'employee-dashboard': {
-    title: 'My Training',
+  contexts: {
+    title: 'Choosing where to work',
     body: (
       <>
-        <p>This page shows every training module assigned to you.</p>
+        <p>Each card is a place you can work: a client workspace, the Global knowledge library, or platform administration.</p>
         <p>
-          <strong>Assigned Trainings</strong> lists what's due or in progress, soonest due date first.{' '}
-          <strong>Completed Trainings</strong> shows your score history and when each one needs to be renewed.
-        </p>
-        <p>Click Start (or Resume) to open a module and take its quiz.</p>
-      </>
-    ),
-  },
-  'training-player': {
-    title: 'Taking a Training',
-    body: (
-      <>
-        <p>Review the content above, then continue to the quiz.</p>
-        <p>
-          For linked or embedded content, you must click "I've reviewed this" before the quiz unlocks — that's what
-          marks the content as viewed.
-        </p>
-        <p>You need to meet the module's passing score to complete it. If you don't pass, you can retake it right away.</p>
-      </>
-    ),
-  },
-  'admin-dashboard': {
-    title: 'Dashboard',
-    body: (
-      <>
-        <p>
-          A snapshot of training compliance across the organization: how many modules and employees you have, and
-          how everyone's assigned training is progressing. The Overdue Employees table lists anyone past their due
-          date or renewal date.
-        </p>
-        <p className="font-medium text-slate-700">Getting started:</p>
-        <ol className="list-decimal space-y-1 pl-4">
-          <li>
-            Create a training module in{' '}
-            <Link to="/admin/modules" className={linkClass}>
-              Modules
-            </Link>
-            .
-          </li>
-          <li>
-            Invite your team in{' '}
-            <Link to="/admin/users" className={linkClass}>
-              Employees
-            </Link>
-            .
-          </li>
-          <li>
-            Assign the module to employees in{' '}
-            <Link to="/admin/assignments" className={linkClass}>
-              Assignments
-            </Link>
-            .
-          </li>
-          <li>Track completion right here on the Dashboard as training gets underway.</li>
-        </ol>
-      </>
-    ),
-  },
-  'admin-modules': {
-    title: 'Training Modules',
-    body: (
-      <>
-        <p>
-          Create training content here, either authored directly in-app (headings, text, images, video embeds) or
-          linked to an external video/PDF/URL, then attach a quiz.
-        </p>
-        <p>
-          A module saves as a <strong>draft</strong> with just a title — content is only required once you check
-          "Published." Drafts are never visible to employees, even if one somehow gets assigned before it's finished.
-        </p>
-        <p>
-          Tag modules with topics on the Edit Module page, then use the search box here (or on Assignments) to find
-          modules by title or topic.
+          The label at the top of every page always shows which one you're in. Client work, such as uploading sources,
+          generating or publishing training, happens only inside that client's workspace.
         </p>
       </>
     ),
   },
-  'admin-module-edit': {
-    title: 'Edit Module',
+  'client-home': {
+    title: 'Client workspace',
     body: (
       <>
+        <p>Everything here belongs to this client only. Nobody outside the client's member list can see it.</p>
+        <p>Until setup is finished the client stays "In setup" and can't receive learners.</p>
+      </>
+    ),
+  },
+  'client-setup': {
+    title: 'Client setup',
+    body: (
+      <>
+        <p>Work through the steps in any order; each step saves on its own.</p>
         <p>
-          Fill in the module's content on the Content tab and save. Once it's saved, the Quiz tab unlocks — add at
-          least one question there before assigning it to anyone.
+          <strong>Governance</strong> decides the most sensitive data this client may hold and which AI services may
+          process it. Until you allow at least one AI service, training can't be generated for this client.
         </p>
+        <p>Activate the client from the Review step once the required items are filled in.</p>
+      </>
+    ),
+  },
+  members: {
+    title: 'Members',
+    body: (
+      <>
+        <p>People need a membership here before they can see anything in this client.</p>
         <p>
-          Check "Published" once the module is ready for employees to see. Publishing is disabled until there's
-          real content (a content block, or an external URL) to show.
+          Client employees sign in as guests of RevTech's Microsoft directory. Add them here by email; RevTech IT sends the
+          guest invitation.
+        </p>
+        <p>LMS Administrators can add and remove learners. Only Client Training Administrators can grant other roles.</p>
+      </>
+    ),
+  },
+  'client-audit': {
+    title: 'Audit log',
+    body: <p>Every change to this client's setup and membership, with who made it and when. Entries can't be edited or deleted.</p>,
+  },
+  'platform-clients': {
+    title: 'Clients',
+    body: (
+      <>
+        <p>All client workspaces on the platform.</p>
+        <p>
+          Creating a client makes you its first Client Training Administrator. Platform Administrators see the client list
+          but not client content unless they are members.
         </p>
       </>
     ),
   },
-  'admin-assignments': {
-    title: 'Assignments',
+  'platform-people': {
+    title: 'People & roles',
     body: (
       <>
+        <p>Everyone who has signed in or been added to a client.</p>
         <p>
-          Assign a published module to one or more employees, with an optional due date. Use "Add everyone from a
-          group" to quickly pull in a whole employee group, then fine-tune individuals before assigning. Search the
-          module list by title or topic if you're assigning from a large catalog.
-        </p>
-        <p>
-          Sort the list below by employee, module, or status — sorting by status puts overdue assignments first.
-          Search it by employee name, module title, or topic.
+          Platform roles cover the platform as a whole. They don't give access to any client's content; that comes only
+          from client membership.
         </p>
       </>
     ),
   },
-  'admin-users': {
-    title: 'Employees',
+  'ai-providers': {
+    title: 'AI providers',
     body: (
       <>
+        <p>The AI services the platform may call. Keys are kept in Key Vault, never here.</p>
         <p>
-          Employees appear here the first time they sign in with their RevTech Microsoft account; there's no invite
-          step. Promote or demote admins and deactivate accounts here. Deactivated employees keep their training
-          history but can't sign in.
+          Each provider has a highest classification it may receive. Content above that level is never sent to it, and
+          no provider can be approved for CUI or export-controlled data in this environment.
         </p>
-        <p>
-          Use Employee Groups to organize people (e.g. by team) so you can batch-assign training to everyone in a
-          group at once from the Assignments page.
-        </p>
+        <p>Clients choose which enabled providers they allow in their own setup.</p>
+      </>
+    ),
+  },
+  'platform-audit': {
+    title: 'Platform audit log',
+    body: <p>Platform-level changes: roles, people, AI providers and settings. Client changes are in each client's own log.</p>,
+  },
+  'client-groups': {
+    title: 'Client groups',
+    body: (
+      <>
+        <p>Named sets of clients, such as "Aerospace & Defense" or "Dassian clients".</p>
+        <p>Shared/Restricted knowledge is made visible to a group rather than to every client.</p>
       </>
     ),
   },
