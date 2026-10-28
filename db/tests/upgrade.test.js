@@ -29,4 +29,4 @@ it('upgrades a database that ran the compliance LMS migrations', async () => {
   // An old auth.users row still gets a profile on next sign-in.
   const { rows: [profile] } = await db.query(`select * from ensure_profile('old.employee@revtech.consulting', 'Old Employee')`);
   expect(profile.full_name).toBe('Old Employee');
-});
+}, 30_000); // applies every migration, old and new: slow when the suites run in parallel

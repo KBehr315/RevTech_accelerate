@@ -50,6 +50,8 @@ export type PlatformSettings = {
   environment_name: string
   max_classification: Classification
   session_idle_minutes: number
+  malware_scanning: 'defender' | 'off'
+  max_upload_mb: number
   updated_at: string
 }
 
@@ -176,4 +178,57 @@ export type AuditEvent = {
   target_type: string | null
   target_id: string | null
   details: Record<string, unknown>
+}
+
+// Knowledge library (db/migrations/00103)
+export type KnowledgeScope = 'global' | 'shared' | 'client' | 'pending_classification'
+export type AssetLifecycle = 'active' | 'superseded' | 'expired' | 'archived'
+export type AssetApproval = 'draft' | 'in_review' | 'approved' | 'rejected'
+export type AiUse = 'generation' | 'reference' | 'human_approval_required' | 'not_approved'
+export type ScanStatus = 'pending' | 'clean' | 'infected' | 'failed' | 'not_scanned'
+
+export type SourceFile = {
+  id: string
+  client_id: string | null
+  blob_path: string
+  filename: string
+  mime_type: string | null
+  bytes: number | null
+  sha256: string | null
+  upload_status: 'uploading' | 'stored' | 'failed'
+  scan_status: ScanStatus
+  scanned_at: string | null
+  uploaded_by: string
+  created_at: string
+  updated_at: string
+}
+
+export type KnowledgeAsset = {
+  id: string
+  client_id: string | null
+  scope: KnowledgeScope
+  title: string
+  document_type: string | null
+  security_classification: Classification
+  lifecycle_status: AssetLifecycle
+  approval_status: AssetApproval
+  ai_use: AiUse
+  workstream_ids: string[]
+  owner_id: string | null
+  current_version_id: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type KnowledgeAssetVersion = {
+  id: string
+  asset_id: string
+  version_no: number
+  source_file_id: string | null
+  metadata: Record<string, unknown>
+  change_note: string | null
+  extraction_status: 'pending' | 'running' | 'done' | 'failed' | 'skipped'
+  created_by: string | null
+  created_at: string
 }

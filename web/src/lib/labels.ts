@@ -1,5 +1,10 @@
 import type {
   AiProviderKind,
+  AiUse,
+  AssetApproval,
+  AssetLifecycle,
+  KnowledgeScope,
+  ScanStatus,
   ApprovalStage,
   Classification,
   ClientRole,
@@ -97,4 +102,50 @@ export function slugify(name: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 48)
+}
+
+export const SCOPE_LABELS: Record<KnowledgeScope, string> = {
+  global: 'Global',
+  shared: 'Shared',
+  client: 'Client-Specific',
+  pending_classification: 'Pending Classification',
+}
+
+export const ASSET_APPROVAL_LABELS: Record<AssetApproval, string> = {
+  draft: 'Draft',
+  in_review: 'In review',
+  approved: 'Approved',
+  rejected: 'Rejected',
+}
+
+export const ASSET_LIFECYCLE_LABELS: Record<AssetLifecycle, string> = {
+  active: 'Active',
+  superseded: 'Superseded',
+  expired: 'Expired',
+  archived: 'Archived',
+}
+
+export const AI_USE_LABELS: Record<AiUse, string> = {
+  generation: 'Approved for AI generation',
+  reference: 'AI reference only',
+  human_approval_required: 'Human approval required for AI',
+  not_approved: 'Not approved for AI',
+}
+
+export const SCAN_STATUS_LABELS: Record<ScanStatus, string> = {
+  pending: 'Virus check running',
+  clean: 'Virus check passed',
+  infected: 'Blocked: virus found',
+  failed: 'Virus check failed',
+  not_scanned: 'Not scanned (preview)',
+}
+
+/** File types the library accepts (start_upload in db/migrations/00103 enforces the same list). */
+export const UPLOAD_EXTENSIONS = ['docx', 'pptx', 'xlsx', 'pdf', 'png', 'jpg', 'jpeg', 'txt', 'csv']
+
+export function formatBytes(bytes: number | null): string {
+  if (bytes == null) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }

@@ -16,6 +16,7 @@ import { ClientGroupsPage } from '@/components/global/ClientGroupsPage'
 import { ClientLayout, RequireClientRole } from '@/components/client/ClientLayout'
 import { ClientHomePage } from '@/components/client/ClientHomePage'
 import { ClientSetupWizard } from '@/components/client/ClientSetupWizard'
+import { LibraryPage } from '@/components/client/LibraryPage'
 import { MembersPage } from '@/components/client/MembersPage'
 import { ClientAuditPage } from '@/components/client/ClientAuditPage'
 import {
@@ -56,6 +57,9 @@ function App() {
                 </Route>
                 <Route element={<RequireClientRole anyOf={['client_training_admin', 'lms_admin']} />}>
                   <Route path="members" element={<MembersPage />} />
+                </Route>
+                <Route element={<RequireClientRole anyOf={['client_training_admin', 'contributor', 'reviewer']} />}>
+                  <Route path="library" element={<LibraryPage />} />
                 </Route>
               </Route>
 

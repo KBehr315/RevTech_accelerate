@@ -116,6 +116,11 @@ CI gates the deploy: unit + SQL + API tests must pass before the image is built;
 | First AI provider in preview | Claude via the Anthropic API (fictional data only; revisit Bedrock/Azure-hosted Claude before real client data) |
 | Demo client | Fictional "Meridian Aerostructures", FI/CO |
 | Preview deployment | Phase 0 deploys to accelerate.revtech.consulting, replacing the compliance app; its data is dropped without export |
+| Second demo client | Fictional "Calder Defense Systems" (FI, subcontractor), to show switching and isolation |
+| Malware scanning | Defender for Storage, pending Ryan's approval (cost and enablement). Until then a preview-only setting marks uploads "Not scanned"; scanning is required wherever real client files are held |
+| Embeddings (semantic search) | Azure OpenAI in RevTech's own Azure subscription, so text stays inside RevTech's tenant |
+| OCR (scans, screenshots) | Claude through the model gateway, with the same classification checks as every AI call |
+| Phase 1 demo files | Kelly provides sample documents; preview holds no real client data, so they are fictionalized first |
 
 ### Still open, needed by phase
 

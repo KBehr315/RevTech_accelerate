@@ -251,6 +251,7 @@ export function PlatformSettingsPage() {
           <p>Retention: not yet decided, so nothing is deleted automatically.</p>
         </CardContent>
       </Card>
+      {settings && <MalwareScanningCard scanning={settings.malware_scanning} preview={settings.environment_name === 'preview'} />}
       <Card>
         <CardHeader>
           <CardTitle>Sessions</CardTitle>
@@ -278,5 +279,50 @@ export function PlatformSettingsPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function MalwareScanningCard({ scanning, preview }: { scanning: 'defender' | 'off'; preview: boolean }) {
+  const update = useUpdatePlatformSettings()
+  const next = scanning === 'defender' ? 'off' : 'defender'
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Virus scanning</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 text-sm text-slate-600">
+        {scanning === 'defender' ? (
+          <p>
+            <strong>On.</strong> Each upload waits for Microsoft Defender for Storage to check it. Files can't be
+            downloaded or read until the check passes. Defender has to be enabled on the storage account for checks
+            to finish.
+          </p>
+        ) : (
+          <p>
+            <strong>Off (preview only).</strong> Uploads are not checked, and are labeled "Not scanned" wherever they
+            appear. Only use fictional files while scanning is off.
+          </p>
+        )}
+        {preview ? (
+          <div>
+            <Button
+              variant="outline"
+              disabled={update.isPending}
+              onClick={() =>
+                update
+                  .mutateAsync({ malware_scanning: next })
+                  .then(() => toast.success(next === 'off' ? 'Virus scanning turned off' : 'Virus scanning turned on'))
+                  .catch((err: Error) => toast.error(err.message))
+              }
+            >
+              {next === 'off' ? 'Turn off for preview' : 'Turn on'}
+            </Button>
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500">Scanning can only be turned off in the preview environment.</p>
+        )}
+      </CardContent>
+    </Card>
   )
 }

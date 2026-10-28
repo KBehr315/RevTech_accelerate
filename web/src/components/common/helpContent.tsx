@@ -53,6 +53,25 @@ export const HELP_CONTENT = {
       </>
     ),
   },
+  library: {
+    title: 'Library',
+    body: (
+      <>
+        <p>
+          The source material this client's training is built from: test scripts, process documents, configuration,
+          screenshots and existing training.
+        </p>
+        <p>
+          New files start as Draft and Client Confidential (or the client's highest classification, if lower). AI may
+          not use them until a person approves it. Only this client's members can see them.
+        </p>
+        <p>
+          Each file is checked for viruses before anyone can download it. Training Administrators see every file;
+          Contributors and Reviewers see what they uploaded or were given access to.
+        </p>
+      </>
+    ),
+  },
   'client-audit': {
     title: 'Audit log',
     body: <p>Every change to this client's setup and membership, with who made it and when. Entries can't be edited or deleted.</p>,
