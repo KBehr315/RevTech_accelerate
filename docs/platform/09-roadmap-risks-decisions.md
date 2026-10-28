@@ -119,7 +119,8 @@ CI gates the deploy: unit + SQL + API tests must pass before the image is built;
 | Second demo client | Fictional "Calder Defense Systems" (FI, subcontractor), to show switching and isolation |
 | Malware scanning | Not used: Kelly treats uploaded files as clean. Scanning stays off in preview (uploads labeled "Not scanned"), and the library accepts only formats without macros or executables (DOCX, PPTX, XLSX, PDF, PNG, JPG, TXT, CSV). Defender for Storage support stays in the code, switched off; turning scanning off outside preview needs a migration, to be revisited before real client files |
 | Embeddings (semantic search) | Azure OpenAI in RevTech's own Azure subscription, so text stays inside RevTech's tenant |
-| OCR (scans, screenshots) | Claude through the model gateway, with the same classification checks as every AI call |
+| OCR (scans, screenshots) | Claude through the model gateway, with the same classification and client-provider checks as every AI call. New uploads are read straight away: transcription for search is not use in training, so it does not wait for the asset's AI-use approval. Text read this way is labeled "read by AI" |
+| Tuning extraction | On what Kelly sees in the Library after uploading; no local sample folder |
 | Phase 1 demo files | Kelly provides sample documents; preview holds no real client data, so they are fictionalized first |
 
 ### Still open, needed by phase

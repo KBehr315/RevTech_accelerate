@@ -7,18 +7,32 @@
 // the model that answered is what gets logged.
 
 import Anthropic from '@anthropic-ai/sdk'
-import { AiRefusedError, type Adapter } from './gateway.ts'
+import { AiRefusedError, type Adapter, type CompletionRequest } from './gateway.ts'
 import { getSecret } from './secrets.ts'
 
 const DEFAULT_MODEL = 'claude-opus-5-5'
 const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 const SUPPORTS_DEFAULT_FALLBACK = new Set(['claude-fable-5-1', 'claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5'])
 
+/** The request's messages, with any attachments placed before the text of the last user message. */
+function withAttachments(request: CompletionRequest): Anthropic.Beta.BetaMessageParam[] {
+  const messages: Anthropic.Beta.BetaMessageParam[] = request.messages.map((m) => ({ role: m.role, content: m.content }))
+  const last = messages[messages.length - 1]
+  if (!request.attachments?.length || last?.role !== 'user') return messages
+  const files: Anthropic.Beta.BetaContentBlockParam[] = request.attachments.map((a) =>
+    a.mediaType === 'application/pdf'
+      ? { type: 'document', source: { type: 'base64', media_type: a.mediaType, data: a.data.toString('base64') } }
+      : { type: 'image', source: { type: 'base64', media_type: a.mediaType, data: a.data.toString('base64') } },
+  )
+  last.content = [...files, { type: 'text', text: last.content as string }]
+  return messages
+}
+
 export const anthropicAdapter: Adapter = async (provider, request) => {
   const secretName = provider.config.key_vault_secret
   if (!secretName) throw new Error(`Provider "${provider.name}" has no Key Vault secret configured.`)
   const model = provider.config.model || DEFAULT_MODEL
-  const effort = EFFORTS.find((e) => e === provider.config.effort) ?? 'high'
+  const effort = request.effort ?? EFFORTS.find((e) => e === provider.config.effort) ?? 'high'
   const fallback = SUPPORTS_DEFAULT_FALLBACK.has(model)
 
   const client = new Anthropic({ apiKey: await getSecret(secretName) })
@@ -30,7 +44,7 @@ export const anthropicAdapter: Adapter = async (provider, request) => {
         max_tokens: request.maxTokens ?? 64_000,
         output_config: { effort },
         ...(request.system ? { system: request.system } : {}),
-        messages: request.messages,
+        messages: withAttachments(request),
         ...(fallback ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const } : {}),
       })
       .finalMessage()

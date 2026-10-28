@@ -199,6 +199,8 @@ export type Locator = {
   table?: number
   rows?: string
   lines?: string
+  /** Set when the text was transcribed by AI from an image or a scanned page. */
+  ocr?: 'image' | 'page'
 }
 
 /** A row from search_library() (db/migrations/00104). */

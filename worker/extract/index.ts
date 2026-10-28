@@ -16,6 +16,8 @@ export type Extraction = {
   chunks: Chunk[]
   /** Shown next to the file: what was read, and anything a person should know. */
   detail: string
+  /** PDF pages with no text layer, for OCR (worker/extract/ocr.ts). */
+  imagePages?: number[]
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
@@ -72,12 +74,12 @@ export async function extract(buffer: Buffer, filename: string): Promise<Extract
     case 'pdf': {
       const { chunks, pages, imagePages } = await extractPdf(buffer)
       if (!chunks.length) {
-        return { status: 'needs_ocr', chunks, detail: `None of the ${plural(pages, 'page')} has a text layer; it looks scanned.` }
+        return { status: 'needs_ocr', chunks, imagePages, detail: `None of the ${plural(pages, 'page')} has a text layer; it looks scanned.` }
       }
       const scanned = imagePages.length
         ? ` ${plural(imagePages.length, 'page')} had no text (scanned?): ${imagePages.slice(0, 10).join(', ')}${imagePages.length > 10 ? '…' : ''}.`
         : ''
-      return { status: 'done', chunks, detail: `Read ${plural(pages - imagePages.length, 'page')}.${scanned}` }
+      return { status: 'done', chunks, imagePages, detail: `Read ${plural(pages - imagePages.length, 'page')}.${scanned}` }
     }
     case 'txt': {
       const chunks = extractTxt(buffer)

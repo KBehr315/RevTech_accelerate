@@ -161,9 +161,13 @@ export const EXTRACTION_STATUS_LABELS: Record<ExtractionStatus, string> = {
   needs_ocr: 'Needs reading (scan or image)',
 }
 
-/** "Page 3", "Slide 7: Allocations", "Sheet Steps, A2:H40", "Purpose › Scope, table 1 rows 2-9", "Lines 10-42". */
+/**
+ * "Page 3", "Slide 7: Allocations", "Sheet Steps, A2:H40", "Purpose › Scope, table 1 rows 2-9",
+ * "Lines 10-42", plus "(read by AI)" for transcribed text.
+ */
 export function locatorLabel(locator: Locator): string {
-  if (locator.page) return `Page ${locator.page}`
+  if (locator.ocr === 'image') return 'Text in the image (read by AI)'
+  if (locator.page) return `Page ${locator.page}${locator.ocr ? ' (read by AI)' : ''}`
   if (locator.slide) return `Slide ${locator.slide}${locator.title ? `: ${locator.title}` : ''}`
   if (locator.sheet) return `Sheet ${locator.sheet}${locator.range ? `, ${locator.range}` : ''}`
   const parts: string[] = []
