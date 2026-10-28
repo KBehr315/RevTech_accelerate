@@ -46,6 +46,9 @@ param customDomainCertificateId string = ''
 param storagePrivateEndpointSubnetId string = ''
 param blobPrivateDnsZoneId string = ''
 
+@description('Load the fictional demo clients in db/seeds. Never in an environment that holds real client data.')
+param demoData bool = false
+
 @description('False on the first pass, before deploy.sh has created the secrets the apps read.')
 param deployApps bool = true
 
@@ -315,6 +318,8 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
             { name: 'DATABASE_URL', secretRef: 'worker-database-url' }
             { name: 'MANAGED_IDENTITY_CLIENT_ID', value: identity.properties.clientId }
             { name: 'STORAGE_BLOB_URL', value: storage.properties.primaryEndpoints.blob }
+            // AI provider keys, read by name from each provider's config (worker/ai/secrets.ts).
+            { name: 'KEY_VAULT_URL', value: keyVault.properties.vaultUri }
           ]
         }
       ]
@@ -353,6 +358,7 @@ resource migrate 'Microsoft.App/jobs@2024-03-01' = if (deployApps) {
             { name: 'DATABASE_URL', secretRef: 'migrate-database-url' }
             { name: 'AUTHENTICATOR_PASSWORD', secretRef: 'authenticator-password' }
             { name: 'WORKER_PASSWORD', secretRef: 'worker-password' }
+            { name: 'DEMO_DATA', value: demoData ? 'true' : 'false' }
           ]
         }
       ]
