@@ -115,6 +115,15 @@ export function usePlaceAsset() {
   })
 }
 
+/** Queues a document's file to be read again (request_extraction, 00107). */
+export function useReadAgain() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (assetId: string) => unwrap(await db.rpc('request_extraction', { p_asset_id: assetId })),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['library'] }),
+  })
+}
+
 /** Clients and client groups a document can be shared with (Global Knowledge Administrators see all). */
 export function useAudienceChoices(enabled: boolean) {
   return useQuery({

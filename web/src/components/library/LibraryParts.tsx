@@ -3,7 +3,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { ChevronDown, ChevronUp, Download, ExternalLink, FolderInput, Search, Upload } from 'lucide-react'
+import { ChevronDown, ChevronUp, Download, ExternalLink, FolderInput, RefreshCw, Search, Upload } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,6 +18,7 @@ import {
   useAudienceChoices,
   useLibrarySearch,
   usePlaceAsset,
+  useReadAgain,
   useUpload,
   type LibraryAsset,
   type Placement,
@@ -155,19 +156,24 @@ export function UploadArea({
   )
 }
 
-/** The documents in one bucket, with an optional action per row (move, copy). */
+/**
+ * The documents in one bucket, with an optional action per row (move, copy).
+ * canReadAgain: the caller may send these files to AI, so may have unread ones read again.
+ */
 export function AssetList({
   assets,
   isLoading,
   empty,
   action,
   note,
+  canReadAgain = false,
 }: {
   assets: LibraryAsset[] | undefined
   isLoading: boolean
   empty: string
   action?: (asset: LibraryAsset) => ReactNode
   note?: (asset: LibraryAsset) => ReactNode
+  canReadAgain?: boolean
 }) {
   return (
     <Card>
@@ -176,7 +182,7 @@ export function AssetList({
         {assets?.length === 0 && <p className="p-4 text-sm text-slate-500">{empty}</p>}
         <ul className="divide-y divide-border">
           {assets?.map((asset) => (
-            <AssetRow key={asset.id} asset={asset} action={action?.(asset)} note={note?.(asset)} />
+            <AssetRow key={asset.id} asset={asset} action={action?.(asset)} note={note?.(asset)} canReadAgain={canReadAgain} />
           ))}
         </ul>
       </CardContent>
@@ -184,9 +190,21 @@ export function AssetList({
   )
 }
 
-function AssetRow({ asset, action, note }: { asset: LibraryAsset; action?: ReactNode; note?: ReactNode }) {
+function AssetRow({
+  asset,
+  action,
+  note,
+  canReadAgain,
+}: {
+  asset: LibraryAsset
+  action?: ReactNode
+  note?: ReactNode
+  canReadAgain: boolean
+}) {
   const file = asset.current?.file
   const [busy, setBusy] = useState(false)
+  const readAgain = useReadAgain()
+  const unread = asset.current?.extraction_status === 'needs_ocr' || asset.current?.extraction_status === 'failed'
   const downloadable = file && (file.scan_status === 'clean' || file.scan_status === 'not_scanned')
   const audiences = asset.scope === 'shared' ? audienceNames(asset) : []
 
@@ -218,7 +236,24 @@ function AssetRow({ asset, action, note }: { asset: LibraryAsset; action?: React
           <p className="mt-1 text-xs text-slate-500">{asset.current.extraction_detail}</p>
         )}
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 lg:shrink-0 lg:justify-end">
+        {canReadAgain && unread && (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={readAgain.isPending}
+            title="Read the file again, using AI for scanned pages and images"
+            onClick={() =>
+              readAgain
+                .mutateAsync(asset.id)
+                .then(() => toast.success('Reading again. This takes a minute or two.'))
+                .catch((err: Error) => toast.error(err.message))
+            }
+          >
+            <RefreshCw className="h-4 w-4" aria-hidden />
+            Read again
+          </Button>
+        )}
         {action}
         {file && (
           <Button
