@@ -1,11 +1,14 @@
 import { PostgrestClient, type PostgrestError } from '@supabase/postgrest-js'
 import type { Database } from '@/types/database.types'
 import { getIdToken } from '@/lib/msal'
+import { viewAsHeader } from '@/store/previewStore'
 
 /** fetch() with the caller's Microsoft ID token attached, for the app's own /api routes. */
 export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers)
   headers.set('Authorization', `Bearer ${await getIdToken()}`)
+  const viewAs = viewAsHeader()
+  if (viewAs) headers.set('X-View-As', viewAs)
   return fetch(input, { ...init, headers })
 }
 

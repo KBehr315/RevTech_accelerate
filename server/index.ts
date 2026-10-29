@@ -9,7 +9,7 @@
 import express, { type Response } from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { callerProfile, missingEnv, postgrestToken, PGRST_URL, type HttpError } from './auth.ts';
+import { callerProfile, missingEnv, postgrestToken, PGRST_URL, refuseWriteWhilePreviewing, viewAs, type HttpError } from './auth.ts';
 import { download, upload } from './files.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -49,7 +49,9 @@ app.use('/api/db', express.raw({ type: () => true, limit: '5mb' }), async (req, 
     if (req.path === '/') return res.status(404).json({ message: 'Not found.' });
 
     const profile = await callerProfile(req.headers.authorization);
-    const headers: Record<string, string> = { Authorization: `Bearer ${await postgrestToken(profile)}` };
+    const preview = viewAs(req.headers['x-view-as']);
+    refuseWriteWhilePreviewing(req.method, preview);
+    const headers: Record<string, string> = { Authorization: `Bearer ${await postgrestToken(profile, preview)}` };
     for (const name of FORWARD_REQUEST_HEADERS) {
       const value = req.headers[name];
       if (typeof value === 'string') headers[name] = value;

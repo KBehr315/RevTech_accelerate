@@ -11,7 +11,7 @@
 import { createHash } from 'node:crypto';
 import { Transform } from 'node:stream';
 import type { Request, Response } from 'express';
-import { callerProfile, httpError, postgrestToken, rpc, serviceToken, type HttpError } from './auth.ts';
+import { callerProfile, httpError, postgrestToken, refuseWriteWhilePreviewing, rpc, serviceToken, viewAs, type HttpError } from './auth.ts';
 import { filesContainer } from './storage.ts';
 
 type SourceFile = { id: string; blob_path: string; mime_type: string | null };
@@ -20,6 +20,7 @@ export async function upload(req: Request, res: Response, sendError: (res: Respo
   let file: SourceFile | undefined;
   try {
     const profile = await callerProfile(req.headers.authorization);
+    refuseWriteWhilePreviewing(req.method, viewAs(req.headers['x-view-as']));
     const container = filesContainer();
     if (!container) throw httpError(503, 'File storage is not configured in this environment.');
     const declared = Number(req.headers['content-length']);
@@ -71,7 +72,7 @@ export async function download(req: Request, res: Response, sendError: (res: Res
     const container = filesContainer();
     if (!container) throw httpError(503, 'File storage is not configured in this environment.');
     const [file] = await rpc<{ blob_path: string; filename: string; mime_type: string | null }[]>(
-      await postgrestToken(profile), 'file_for_download', { p_file_id: req.params.id },
+      await postgrestToken(profile, viewAs(req.headers['x-view-as'])), 'file_for_download', { p_file_id: req.params.id },
     );
 
     const blob = await container.getBlobClient(file.blob_path).download();
