@@ -20,7 +20,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
-import { hasPlatformRole, useSession, type Session } from '@/hooks/useSession'
+import { destinations, hasPlatformRole, useSession, type Session } from '@/hooks/useSession'
 import { cn, initials } from '@/lib/utils'
 import { useActiveContext, type ActiveContext } from './context'
 import { ContextSwitcher } from './ContextSwitcher'
@@ -85,11 +85,17 @@ function platformNav(): NavItem[] {
   ]
 }
 
-/** Back to the previous screen; hidden on the first page of the visit, where there is none. */
+/**
+ * Back to the previous screen within the app. Hidden on the first page after
+ * signing in: going further back would leave the app (to the Microsoft sign-in).
+ * React Router numbers this tab's entries in history.state.idx, from 0, and a
+ * redirect that replaces the first page keeps 0.
+ */
 function BackButton() {
   const navigate = useNavigate()
-  const location = useLocation()
-  if (location.key === 'default') return null
+  useLocation() // re-render on every navigation, so idx is current
+  const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0
+  if (idx === 0) return null
   return (
     <button
       type="button"
@@ -114,11 +120,11 @@ function SideLink({ link }: { link: NavItem }) {
   )
 }
 
-/** A menu group that opens and closes; it starts open on any of its own pages. */
+/** A menu group that opens and closes; it starts closed. */
 function NavGroup({ group }: { group: NavItem }) {
   const { pathname } = useLocation()
   const inside = pathname === group.to || pathname.startsWith(`${group.to}/`)
-  const [open, setOpen] = useState(inside)
+  const [open, setOpen] = useState(false)
   const Chevron = open ? ChevronDown : ChevronRight
   return (
     <div className="flex flex-col gap-1">
@@ -145,8 +151,9 @@ export function AppShell() {
   const { data: session } = useSession()
   const links = navFor(context, session)
   const hasOtherContexts = (session?.workspaces.length ?? 0) + (session?.platformRoles.length ?? 0) > 1
-  // The logo goes to Platform administration for those allowed there, otherwise home.
-  const logoTarget = hasPlatformRole(session, 'platform_admin') ? '/platform' : '/'
+  // The logo goes to the workspace picker for those who have one (see HomeRedirect), otherwise home.
+  const logoTarget =
+    session && (destinations(session).length > 1 || hasPlatformRole(session, 'client_creator')) ? '/contexts' : '/'
 
   return (
     <div className="flex min-h-svh">
@@ -195,7 +202,9 @@ export function AppShell() {
         <PreviewBanner />
         <header className="flex items-center gap-3 border-b border-border bg-white px-4 py-2 md:px-6">
           <BackButton />
-          <ContextSwitcher />
+          <div className="ml-auto">
+            <ContextSwitcher />
+          </div>
         </header>
         <nav aria-label="Main" className="flex gap-1 overflow-x-auto border-b border-border bg-white px-2 py-1 md:hidden">
           {links.flatMap((link) => link.children ?? [link]).map((link) => (
