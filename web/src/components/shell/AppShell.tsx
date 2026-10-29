@@ -114,11 +114,11 @@ function SideLink({ link }: { link: NavItem }) {
   )
 }
 
-/** A menu group that opens and closes; it starts open on any of its own pages. */
+/** A menu group that opens and closes; it starts closed. */
 function NavGroup({ group }: { group: NavItem }) {
   const { pathname } = useLocation()
   const inside = pathname === group.to || pathname.startsWith(`${group.to}/`)
-  const [open, setOpen] = useState(inside)
+  const [open, setOpen] = useState(false)
   const Chevron = open ? ChevronDown : ChevronRight
   return (
     <div className="flex flex-col gap-1">
