@@ -1,6 +1,7 @@
 // Knowledge library, part 1 (00103): uploads, defaults, who sees what, and the
 // malware-scan gate on downloads.
 
+import { randomBytes } from 'node:crypto';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { as, createDb, makeProfile, sql } from './harness.js';
 
@@ -24,10 +25,10 @@ async function member(clientId, email, roles) {
 }
 
 /* start_upload as `profileId`, then complete_upload as the server. Returns the asset. */
-async function upload(profileId, clientId, filename = 'FI-GL-010 Post Journal Entry.docx', bytes = 2048) {
+async function upload(profileId, clientId, filename = 'FI-GL-010 Post Journal Entry.docx', bytes = 2048, sha256 = randomBytes(32).toString('hex')) {
   const [file] = await as(db, profileId)('select * from start_upload($1, $2, $3, $4)',
     [clientId, filename, 'application/octet-stream', bytes]);
-  const [asset] = await asServer('select * from complete_upload($1, $2, $3)', [file.id, bytes, 'ab'.repeat(32)]);
+  const [asset] = await asServer('select * from complete_upload($1, $2, $3)', [file.id, bytes, sha256]);
   return { file, asset };
 }
 
@@ -58,7 +59,7 @@ beforeAll(async () => {
 
 describe('uploading to a client', () => {
   it('applies the client defaults, creates version 1, queues a scan and audits it', async () => {
-    const { file, asset } = await upload(cta, meridian);
+    const { file, asset } = await upload(cta, meridian, undefined, undefined, 'ab'.repeat(32));
 
     expect(file.blob_path).toBe(`clients/${meridian}/${file.id}`);
     expect(asset).toMatchObject({

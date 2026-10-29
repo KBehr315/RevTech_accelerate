@@ -3,7 +3,19 @@
 
 import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { ChevronDown, ChevronUp, Download, ExternalLink, FolderInput, RefreshCw, Search, Upload } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Download,
+  ExternalLink,
+  FilePlus2,
+  FolderInput,
+  History,
+  RefreshCw,
+  Search,
+  Upload,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,11 +27,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 import {
   downloadFile,
   openPdfAtPage,
+  useAssetVersions,
   useAudienceChoices,
   useLibrarySearch,
   usePlaceAsset,
   useReadAgain,
+  useResolveDuplicate,
   useUpload,
+  useUploadVersion,
   type LibraryAsset,
   type Placement,
 } from '@/hooks/useLibrary'
@@ -158,7 +173,9 @@ export function UploadArea({
 
 /**
  * The documents in one bucket, with an optional action per row (move, copy).
- * canReadAgain: the caller may send these files to AI, so may have unread ones read again.
+ * canEdit: the caller may add versions, answer duplicate suggestions and have
+ * unread files read again (Training Administrators and Contributors in a
+ * client; Global Knowledge Administrators outside one).
  */
 export function AssetList({
   assets,
@@ -166,14 +183,14 @@ export function AssetList({
   empty,
   action,
   note,
-  canReadAgain = false,
+  canEdit = false,
 }: {
   assets: LibraryAsset[] | undefined
   isLoading: boolean
   empty: string
   action?: (asset: LibraryAsset) => ReactNode
   note?: (asset: LibraryAsset) => ReactNode
-  canReadAgain?: boolean
+  canEdit?: boolean
 }) {
   return (
     <Card>
@@ -182,7 +199,7 @@ export function AssetList({
         {assets?.length === 0 && <p className="p-4 text-sm text-slate-500">{empty}</p>}
         <ul className="divide-y divide-border">
           {assets?.map((asset) => (
-            <AssetRow key={asset.id} asset={asset} action={action?.(asset)} note={note?.(asset)} canReadAgain={canReadAgain} />
+            <AssetRow key={asset.id} asset={asset} action={action?.(asset)} note={note?.(asset)} canEdit={canEdit} />
           ))}
         </ul>
       </CardContent>
@@ -194,12 +211,12 @@ function AssetRow({
   asset,
   action,
   note,
-  canReadAgain,
+  canEdit,
 }: {
   asset: LibraryAsset
   action?: ReactNode
   note?: ReactNode
-  canReadAgain: boolean
+  canEdit: boolean
 }) {
   const file = asset.current?.file
   const [busy, setBusy] = useState(false)
@@ -207,6 +224,7 @@ function AssetRow({
   const unread = asset.current?.extraction_status === 'needs_ocr' || asset.current?.extraction_status === 'failed'
   const downloadable = file && (file.scan_status === 'clean' || file.scan_status === 'not_scanned')
   const audiences = asset.scope === 'shared' ? audienceNames(asset) : []
+  const openSuggestions = canEdit ? (asset.suggestions ?? []).filter((s) => s.status === 'open' && s.existing) : []
 
   return (
     <li className="flex flex-col gap-2 p-4 lg:flex-row lg:items-center lg:justify-between">
@@ -235,9 +253,12 @@ function AssetRow({
         {asset.current?.extraction_detail && asset.current.extraction_status !== 'done' && (
           <p className="mt-1 text-xs text-slate-500">{asset.current.extraction_detail}</p>
         )}
+        {openSuggestions.map((s) => (
+          <DuplicateSuggestion key={s.id} asset={asset} suggestion={s} />
+        ))}
       </div>
       <div className="flex flex-wrap gap-2 lg:shrink-0 lg:justify-end">
-        {canReadAgain && unread && (
+        {canEdit && unread && (
           <Button
             variant="outline"
             size="sm"
@@ -255,6 +276,8 @@ function AssetRow({
           </Button>
         )}
         {action}
+        {canEdit && !asset.copied_from_asset_id && <NewVersionButton asset={asset} />}
+        <HistoryButton asset={asset} />
         {file && (
           <Button
             variant="outline"
@@ -274,6 +297,181 @@ function AssetRow({
         )}
       </div>
     </li>
+  )
+}
+
+type Suggestion = NonNullable<LibraryAsset['suggestions']>[number]
+
+/** "Looks like a newer version of X": make it the next version, keep both, or remove the upload. */
+function DuplicateSuggestion({ asset, suggestion }: { asset: LibraryAsset; suggestion: Suggestion }) {
+  const resolve = useResolveDuplicate()
+  const existing = suggestion.existing!
+  const why = [
+    suggestion.same_name && 'the same name',
+    suggestion.text_similarity >= 0.5 && `${Math.round(suggestion.text_similarity * 100)}% the same text`,
+  ]
+    .filter(Boolean)
+    .join(' and ')
+  const answer = (action: 'new_version' | 'separate' | 'remove', done: string) =>
+    resolve
+      .mutateAsync({ id: suggestion.id, action })
+      .then(() => toast.success(done))
+      .catch((err: Error) => toast.error(err.message))
+
+  return (
+    <div className="mt-3 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+      <p className="text-slate-800">
+        <Copy className="mr-1 inline h-4 w-4 text-amber-600" aria-hidden />
+        Looks like a newer version of <strong>{existing.title}</strong> ({why}).
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          disabled={resolve.isPending}
+          onClick={() => void answer('new_version', `Added to "${existing.title}" as its newest version`)}
+        >
+          Make it the newest version
+        </Button>
+        <Button variant="outline" size="sm" disabled={resolve.isPending} onClick={() => void answer('separate', 'Kept as a separate document')}>
+          Keep separate
+        </Button>
+        <Button variant="ghost" size="sm" disabled={resolve.isPending} onClick={() => void answer('remove', `Removed "${asset.title}"`)}>
+          Remove this upload
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** Upload a file as the next version of this document, with a note of what changed. */
+function NewVersionButton({ asset }: { asset: LibraryAsset }) {
+  const [open, setOpen] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const [note, setNote] = useState('')
+  const upload = useUploadVersion()
+  const next = (asset.current?.version_no ?? 0) + 1
+  const supported = !file || UPLOAD_EXTENSIONS.includes(extensionOf(file.name))
+  const close = (isOpen: boolean) => {
+    setOpen(isOpen)
+    if (!isOpen) {
+      setFile(null)
+      setNote('')
+    }
+  }
+
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <FilePlus2 className="h-4 w-4" aria-hidden />
+        New version
+      </Button>
+      <Dialog open={open} onOpenChange={close}>
+        <DialogContent>
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!file) return
+              upload
+                .mutateAsync({ assetId: asset.id, file, note })
+                .then(() => {
+                  toast.success(`Uploaded version ${next} of "${asset.title}"`)
+                  close(false)
+                })
+                .catch((err: Error) => toast.error(err.message))
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>New version of "{asset.title}"</DialogTitle>
+              <DialogDescription>
+                It becomes version {next}, which search and AI use. Earlier versions stay in History. The document goes back
+                to Draft until it's approved again.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`version-file-${asset.id}`}>File</Label>
+              <Input
+                id={`version-file-${asset.id}`}
+                type="file"
+                accept={UPLOAD_EXTENSIONS.map((ext) => `.${ext}`).join(',')}
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+              {!supported && <p className="text-xs text-status-red">This file type is not supported yet.</p>}
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`version-note-${asset.id}`}>What changed (optional)</Label>
+              <Input
+                id={`version-note-${asset.id}`}
+                maxLength={500}
+                placeholder="e.g. Updated for the 2025 release"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => close(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!file || !supported || upload.isPending}>
+                {upload.isPending ? 'Uploading…' : 'Upload version'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+/** Every version of the document, newest first, each downloadable. */
+function HistoryButton({ asset }: { asset: LibraryAsset }) {
+  const [open, setOpen] = useState(false)
+  const { data: versions, isLoading } = useAssetVersions(asset.id, open)
+
+  return (
+    <>
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+        <History className="h-4 w-4" aria-hidden />
+        History
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-h-[90svh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>History of "{asset.title}"</DialogTitle>
+            <DialogDescription>The current version is the one search and AI use.</DialogDescription>
+          </DialogHeader>
+          {isLoading && <Skeleton className="h-24" />}
+          <ul className="flex flex-col divide-y divide-border">
+            {versions?.map((v) => (
+              <li key={v.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                    Version {v.version_no}
+                    {v.version_no === asset.current?.version_no && <Badge variant="success">Current</Badge>}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {formatDate(v.created_at)} · {v.author?.full_name ?? 'someone'}
+                    {v.file && ` · ${v.file.filename} · ${formatBytes(v.file.bytes)}`}
+                  </p>
+                  {v.change_note && <p className="text-xs text-slate-600">{v.change_note}</p>}
+                </div>
+                {v.file && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!['clean', 'not_scanned'].includes(v.file.scan_status)}
+                    onClick={() => void downloadFile(v.file!.id, v.file!.filename).catch((err: Error) => toast.error(err.message))}
+                  >
+                    <Download className="h-4 w-4" aria-hidden />
+                    Download
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 

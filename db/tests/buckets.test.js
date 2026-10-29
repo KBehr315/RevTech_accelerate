@@ -1,6 +1,7 @@
 // Knowledge library buckets (00106): Global, Shared, Client, RevTech Reference
 // and Pending; who sees each, placing, copying out of a client, and search.
 
+import { randomBytes } from 'node:crypto';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { as, createDb, makeProfile, sql } from './harness.js';
 
@@ -25,7 +26,7 @@ async function member(clientId, email, roles) {
 /* Uploads as `who` to `clientId` (null = outside a client), marks it read with one chunk of `text`. */
 async function upload(who, clientId, filename, text) {
   const [file] = await as(db, who)('select * from start_upload($1, $2, null, 100)', [clientId, filename]);
-  const [asset] = await asServer('select * from complete_upload($1, 100, $2)', [file.id, 'cd'.repeat(32)]);
+  const [asset] = await asServer('select * from complete_upload($1, 100, $2)', [file.id, randomBytes(32).toString('hex')]);
   await sql(db, `update source_files set scan_status = 'not_scanned' where id = $1`, [file.id]);
   await sql(db, `select save_extraction($1, 'done', 'Read 1 page.', $2)`,
     [asset.current_version_id, JSON.stringify([{ text, locator: { page: 1 } }])]);
@@ -170,7 +171,7 @@ describe('copying a client document', () => {
 
   it('waits until the file has been read', async () => {
     const [file] = await as(db, gkaCta)(`select * from start_upload($1, 'Unread.pdf', null, 100)`, [meridian]);
-    const [asset] = await asServer('select * from complete_upload($1, 100, $2)', [file.id, 'ef'.repeat(32)]);
+    const [asset] = await asServer('select * from complete_upload($1, 100, $2)', [file.id, randomBytes(32).toString('hex')]);
     await expect(as(db, gkaCta)(`select copy_asset($1, 'revtech_reference')`, [asset.id])).rejects.toThrow(/Wait until the file has been read/);
   });
 });

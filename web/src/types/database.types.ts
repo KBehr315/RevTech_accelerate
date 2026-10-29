@@ -1,5 +1,5 @@
 // Hand-authored to match db/migrations/00100_platform_identity_and_tenancy.sql
-// and the migrations after it (00101 jobs, 00102 AI gateway, 00103-00106 knowledge library).
+// and the migrations after it (00101 jobs, 00102 AI gateway, 00103-00108 knowledge library).
 // Update this alongside every migration that changes a table or function the
 // web app uses. Insert/Update list only what callers may actually write: RLS and
 // column grants refuse the rest.
@@ -15,6 +15,7 @@ import type {
   ClientRole,
   ClientTerm,
   ClientWorkstream,
+  DuplicateCandidate,
   Job,
   KnowledgeAsset,
   KnowledgeAssetVersion,
@@ -201,6 +202,39 @@ export type Database = {
             referencedRelation: 'source_files'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'knowledge_asset_versions_asset_id_fkey'
+            columns: ['asset_id']
+            referencedRelation: 'knowledge_assets'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'knowledge_asset_versions_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      >
+      duplicate_candidates: Table<
+        DuplicateCandidate,
+        never,
+        never,
+        [
+          {
+            foreignKeyName: 'duplicate_candidates_asset_id_fkey'
+            columns: ['asset_id']
+            referencedRelation: 'knowledge_assets'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'duplicate_candidates_existing_asset_id_fkey'
+            columns: ['existing_asset_id']
+            isOneToOne: true
+            referencedRelation: 'knowledge_assets'
+            referencedColumns: ['id']
+          },
         ]
       >
     }
@@ -227,6 +261,10 @@ export type Database = {
       }
       copy_asset: {
         Args: { p_asset_id: string; p_scope: KnowledgeScope; p_client_ids?: string[]; p_group_ids?: string[] }
+        Returns: KnowledgeAsset
+      }
+      resolve_duplicate: {
+        Args: { p_candidate_id: string; p_action: 'new_version' | 'separate' | 'remove' }
         Returns: KnowledgeAsset
       }
       request_extraction: { Args: { p_asset_id: string }; Returns: Job }

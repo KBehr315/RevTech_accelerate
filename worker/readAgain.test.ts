@@ -1,6 +1,7 @@
 // "Read again" (00107): a file left unread is queued again by someone allowed
 // to send it to AI, and its copies in other buckets get the same text.
 
+import { randomBytes } from 'node:crypto'
 import { PDFDocument } from 'pdf-lib'
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { PGlite } from '@electric-sql/pglite'
@@ -48,7 +49,7 @@ async function unreadScan(name: string) {
   let id = ''
   await pglite.transaction(async (tx) => {
     await tx.query('set local role service_role')
-    id = ((await tx.query('select id from complete_upload($1, $2, $3)', [file.id, content.length, 'cc'.repeat(32)])).rows[0] as { id: string }).id
+    id = ((await tx.query('select id from complete_upload($1, $2, $3)', [file.id, content.length, randomBytes(32).toString('hex')])).rows[0] as { id: string }).id
   })
   await work()
   return id
