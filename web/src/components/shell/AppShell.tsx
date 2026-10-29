@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
   Building2,
+  ChevronDown,
+  ChevronRight,
   Eye,
   Globe,
   Cpu,
@@ -28,8 +31,8 @@ interface NavItem {
   label: string
   icon: LucideIcon
   end?: boolean
-  /** Starts a titled group in the menu. */
-  section?: string
+  /** A group that opens and closes in the side menu (`to` is where the group lives). */
+  children?: NavItem[]
 }
 
 const GLOBAL_NAV: NavItem[] = [
@@ -42,7 +45,7 @@ function navFor(context: ActiveContext, session: Session | undefined): NavItem[]
   const isPlatformAdmin = hasPlatformRole(session, 'platform_admin')
   // Platform Administrators who also look after RevTech knowledge get both in one menu.
   const globalSection: NavItem[] = hasPlatformRole(session, 'global_knowledge_admin')
-    ? GLOBAL_NAV.map((item, i) => (i === 0 ? { ...item, section: 'Global knowledge' } : item))
+    ? [{ to: '/global', label: 'Global knowledge', icon: Globe, children: GLOBAL_NAV }]
     : []
   switch (context.kind) {
     case 'client': {
@@ -99,6 +102,42 @@ function BackButton() {
   )
 }
 
+const SIDE_LINK =
+  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-surface-muted hover:text-[#0B76A0]'
+
+function SideLink({ link }: { link: NavItem }) {
+  return (
+    <NavLink to={link.to} end={link.end} className={({ isActive }) => cn(SIDE_LINK, isActive && 'bg-brand-50 text-brand-700')}>
+      <link.icon className="h-4 w-4" aria-hidden />
+      {link.label}
+    </NavLink>
+  )
+}
+
+/** A menu group that opens and closes; it starts open on any of its own pages. */
+function NavGroup({ group }: { group: NavItem }) {
+  const { pathname } = useLocation()
+  const inside = pathname === group.to || pathname.startsWith(`${group.to}/`)
+  const [open, setOpen] = useState(inside)
+  const Chevron = open ? ChevronDown : ChevronRight
+  return (
+    <div className="flex flex-col gap-1">
+      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={cn(SIDE_LINK, inside && 'text-brand-700')}>
+        <group.icon className="h-4 w-4" aria-hidden />
+        <span className="flex-1 text-left">{group.label}</span>
+        <Chevron className="h-4 w-4" aria-hidden />
+      </button>
+      {open && (
+        <div className="ml-4 flex flex-col gap-1 border-l border-border pl-2">
+          {group.children!.map((link) => (
+            <SideLink key={link.to} link={link} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function AppShell() {
   const profile = useAuthStore((s) => s.profile)
   const signOut = useAuthStore((s) => s.signOut)
@@ -122,26 +161,9 @@ export function AppShell() {
           </span>
         </Link>
         <nav aria-label="Main" className="flex flex-1 flex-col gap-1 p-3">
-          {links.map((link) => (
-            <div key={link.to} className="flex flex-col gap-1">
-              {link.section && (
-                <p className="mt-4 px-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{link.section}</p>
-              )}
-              <NavLink
-                to={link.to}
-                end={link.end}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-surface-muted hover:text-[#0B76A0]',
-                    isActive && 'bg-brand-50 text-brand-700',
-                  )
-                }
-              >
-                <link.icon className="h-4 w-4" aria-hidden />
-                {link.label}
-              </NavLink>
-            </div>
-          ))}
+          {links.map((link) =>
+            link.children ? <NavGroup key={link.to} group={link} /> : <SideLink key={link.to} link={link} />,
+          )}
           {hasOtherContexts && (
             <NavLink
               to="/contexts"
@@ -176,7 +198,7 @@ export function AppShell() {
           <ContextSwitcher />
         </header>
         <nav aria-label="Main" className="flex gap-1 overflow-x-auto border-b border-border bg-white px-2 py-1 md:hidden">
-          {links.map((link) => (
+          {links.flatMap((link) => link.children ?? [link]).map((link) => (
             <NavLink
               key={link.to}
               to={link.to}
