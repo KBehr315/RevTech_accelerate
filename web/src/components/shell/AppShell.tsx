@@ -195,7 +195,9 @@ export function AppShell() {
         <PreviewBanner />
         <header className="flex items-center gap-3 border-b border-border bg-white px-4 py-2 md:px-6">
           <BackButton />
-          <ContextSwitcher />
+          <div className="ml-auto">
+            <ContextSwitcher />
+          </div>
         </header>
         <nav aria-label="Main" className="flex gap-1 overflow-x-auto border-b border-border bg-white px-2 py-1 md:hidden">
           {links.flatMap((link) => link.children ?? [link]).map((link) => (

@@ -63,7 +63,7 @@ export function ContextSwitcher() {
           <ChevronDown className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-72">
+      <DropdownMenuContent align="end" className="w-72">
         {options.map((dest, i) => {
           const DestIcon = KIND_ICON[dest.kind]
           const previous = options[i - 1]
