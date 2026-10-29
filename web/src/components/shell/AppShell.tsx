@@ -20,7 +20,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
-import { hasPlatformRole, useSession, type Session } from '@/hooks/useSession'
+import { destinations, hasPlatformRole, useSession, type Session } from '@/hooks/useSession'
 import { cn, initials } from '@/lib/utils'
 import { useActiveContext, type ActiveContext } from './context'
 import { ContextSwitcher } from './ContextSwitcher'
@@ -85,11 +85,17 @@ function platformNav(): NavItem[] {
   ]
 }
 
-/** Back to the previous screen; hidden on the first page of the visit, where there is none. */
+/**
+ * Back to the previous screen within the app. Hidden on the first page after
+ * signing in: going further back would leave the app (to the Microsoft sign-in).
+ * React Router numbers this tab's entries in history.state.idx, from 0, and a
+ * redirect that replaces the first page keeps 0.
+ */
 function BackButton() {
   const navigate = useNavigate()
-  const location = useLocation()
-  if (location.key === 'default') return null
+  useLocation() // re-render on every navigation, so idx is current
+  const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0
+  if (idx === 0) return null
   return (
     <button
       type="button"
@@ -145,8 +151,9 @@ export function AppShell() {
   const { data: session } = useSession()
   const links = navFor(context, session)
   const hasOtherContexts = (session?.workspaces.length ?? 0) + (session?.platformRoles.length ?? 0) > 1
-  // The logo goes to Platform administration for those allowed there, otherwise home.
-  const logoTarget = hasPlatformRole(session, 'platform_admin') ? '/platform' : '/'
+  // The logo goes to the workspace picker for those who have one (see HomeRedirect), otherwise home.
+  const logoTarget =
+    session && (destinations(session).length > 1 || hasPlatformRole(session, 'client_creator')) ? '/contexts' : '/'
 
   return (
     <div className="flex min-h-svh">
