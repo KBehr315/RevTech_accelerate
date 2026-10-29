@@ -252,6 +252,11 @@ export type KnowledgeAsset = {
   current_version_id: string | null
   /** Set on a copy made from a client's document (copy_asset, 00106). */
   copied_from_asset_id: string | null
+  /** On a copy: when its original was deleted (00109). */
+  original_deleted_at: string | null
+  /** Set while the document is in the Deleted list (00109). */
+  deleted_at: string | null
+  deleted_by: string | null
   created_by: string | null
   created_at: string
   updated_at: string

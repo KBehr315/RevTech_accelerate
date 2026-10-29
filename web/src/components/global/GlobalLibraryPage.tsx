@@ -23,6 +23,7 @@ export function GlobalLibraryPage() {
     shared: useAssets({ scope: 'shared' }),
     pending_classification: useAssets({ scope: 'pending_classification' }),
   }
+  const deleted = useAssets({ deletedIn: null })
   const count = (bucket: Bucket) => (lists[bucket].data ? ` (${lists[bucket].data.length})` : '')
 
   return (
@@ -67,6 +68,7 @@ export function GlobalLibraryPage() {
               {count(bucket)}
             </TabsTrigger>
           ))}
+          <TabsTrigger value="deleted">Deleted{deleted.data ? ` (${deleted.data.length})` : ''}</TabsTrigger>
         </TabsList>
         {BUCKETS.map((bucket) => (
           <TabsContent key={bucket} value={bucket} className="flex flex-col gap-4">
@@ -86,6 +88,13 @@ export function GlobalLibraryPage() {
             />
           </TabsContent>
         ))}
+        <TabsContent value="deleted" className="flex flex-col gap-4">
+          <p className="text-sm text-slate-600">
+            Documents deleted from RevTech Reference, Global, Shared and Pending. They're out of search and AI, and can be
+            restored.
+          </p>
+          <AssetList assets={deleted.data} isLoading={deleted.isLoading} canEdit empty="Nothing has been deleted." />
+        </TabsContent>
       </Tabs>
     </div>
   )

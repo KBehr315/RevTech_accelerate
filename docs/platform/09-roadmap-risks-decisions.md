@@ -129,6 +129,9 @@ CI gates the deploy: unit + SQL + API tests must pass before the image is built;
 | Exact duplicate uploads | Refused, naming the existing document when the uploader can see it. Compared within one client only (or, outside clients, among RevTech's own documents) |
 | Near duplicates | Uploaded, then offered as a newer version of the document they resemble (same name once version words are ignored, or at least half the same text): make it the newest version, keep separate, or remove (archive) the upload |
 | Versions | Can be uploaded on purpose with a note of what changed; older versions stay in History. A new version goes back to Draft and Human Approval Required |
+| Editing documents | **Edit** downloads the file; the person changes it in Word or Excel and uploads the saved file as the next version. In-browser editing (Microsoft 365 or a built-in editor) not pursued for now |
+| Deleting documents | Soft delete to a **Deleted** list, restorable, with who and when recorded. Allowed for the people who may add versions: a client's Training Administrators and Contributors; outside clients, Global Knowledge Administrators |
+| Copies of a deleted document | Stay in RevTech Reference, Global or Shared, with the title shown in red and a note that the original was deleted |
 
 ### Still open, needed by phase
 
