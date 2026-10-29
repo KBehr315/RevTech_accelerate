@@ -161,6 +161,12 @@ export type Database = {
             referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'knowledge_assets_deleted_by_fkey'
+            columns: ['deleted_by']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
         ]
       >
       asset_audiences: Table<
@@ -268,6 +274,8 @@ export type Database = {
         Returns: KnowledgeAsset
       }
       request_extraction: { Args: { p_asset_id: string }; Returns: Job }
+      delete_asset: { Args: { p_asset_id: string }; Returns: KnowledgeAsset }
+      restore_asset: { Args: { p_asset_id: string }; Returns: KnowledgeAsset }
       asset_copies: { Args: { p_asset_ids: string[] }; Returns: { copied_from_asset_id: string; scope: KnowledgeScope }[] }
       client_shared_assets: {
         Args: { p_client_id: string }

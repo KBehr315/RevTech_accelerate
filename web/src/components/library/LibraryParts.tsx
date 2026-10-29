@@ -9,11 +9,13 @@ import {
   Copy,
   Download,
   ExternalLink,
-  FilePlus2,
   FolderInput,
   History,
+  Pencil,
   RefreshCw,
+  RotateCcw,
   Search,
+  Trash2,
   Upload,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -29,10 +31,12 @@ import {
   openPdfAtPage,
   useAssetVersions,
   useAudienceChoices,
+  useDeleteAsset,
   useLibrarySearch,
   usePlaceAsset,
   useReadAgain,
   useResolveDuplicate,
+  useRestoreAsset,
   useUpload,
   useUploadVersion,
   type LibraryAsset,
@@ -173,9 +177,10 @@ export function UploadArea({
 
 /**
  * The documents in one bucket, with an optional action per row (move, copy).
- * canEdit: the caller may add versions, answer duplicate suggestions and have
- * unread files read again (Training Administrators and Contributors in a
- * client; Global Knowledge Administrators outside one).
+ * canEdit: the caller may edit (add versions), delete and restore, answer
+ * duplicate suggestions and have unread files read again (Training
+ * Administrators and Contributors in a client; Global Knowledge Administrators
+ * outside one). Deleted documents show who deleted them and Restore instead.
  */
 export function AssetList({
   assets,
@@ -224,12 +229,28 @@ function AssetRow({
   const unread = asset.current?.extraction_status === 'needs_ocr' || asset.current?.extraction_status === 'failed'
   const downloadable = file && (file.scan_status === 'clean' || file.scan_status === 'not_scanned')
   const audiences = asset.scope === 'shared' ? audienceNames(asset) : []
-  const openSuggestions = canEdit ? (asset.suggestions ?? []).filter((s) => s.status === 'open' && s.existing) : []
+  const deleted = asset.lifecycle_status === 'archived'
+  const openSuggestions =
+    canEdit && !deleted
+      ? (asset.suggestions ?? []).filter((s) => s.status === 'open' && s.existing && s.existing.lifecycle_status !== 'archived')
+      : []
 
   return (
     <li className="flex flex-col gap-2 p-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="min-w-0">
-        <p className="font-medium text-slate-900">{asset.title}</p>
+        <p className={cn('font-medium', asset.original_deleted_at ? 'text-status-red' : 'text-slate-900')}>{asset.title}</p>
+        {asset.original_deleted_at && (
+          <p className="text-xs text-status-red">
+            The client's original was deleted on {formatDate(asset.original_deleted_at)}. This copy is unchanged.
+          </p>
+        )}
+        {deleted && (
+          <p className="text-xs text-status-red">
+            {asset.deleter
+              ? `Deleted by ${asset.deleter.full_name} on ${formatDate(asset.deleted_at!)}`
+              : `Removed as a duplicate on ${formatDate(asset.updated_at)}`}
+          </p>
+        )}
         <p className="truncate text-xs text-slate-500">
           {file?.filename} · {formatBytes(file?.bytes ?? null)} · version {asset.current?.version_no} · added by{' '}
           {asset.uploader?.full_name ?? 'someone'} on {formatDate(asset.created_at)}
@@ -258,7 +279,8 @@ function AssetRow({
         ))}
       </div>
       <div className="flex flex-wrap gap-2 lg:shrink-0 lg:justify-end">
-        {canEdit && unread && (
+        {canEdit && deleted && <RestoreButton asset={asset} />}
+        {canEdit && unread && !deleted && (
           <Button
             variant="outline"
             size="sm"
@@ -275,8 +297,8 @@ function AssetRow({
             Read again
           </Button>
         )}
-        {action}
-        {canEdit && !asset.copied_from_asset_id && <NewVersionButton asset={asset} />}
+        {!deleted && action}
+        {canEdit && !deleted && !asset.copied_from_asset_id && <EditButton asset={asset} />}
         <HistoryButton asset={asset} />
         {file && (
           <Button
@@ -295,6 +317,7 @@ function AssetRow({
             Download
           </Button>
         )}
+        {canEdit && !deleted && <DeleteButton asset={asset} />}
       </div>
     </li>
   )
@@ -343,12 +366,19 @@ function DuplicateSuggestion({ asset, suggestion }: { asset: LibraryAsset; sugge
   )
 }
 
-/** Upload a file as the next version of this document, with a note of what changed. */
-function NewVersionButton({ asset }: { asset: LibraryAsset }) {
+/**
+ * Editing: download the current file, change it in Word or Excel, then upload
+ * the saved file as the next version, with a note of what changed. History
+ * keeps every version.
+ */
+function EditButton({ asset }: { asset: LibraryAsset }) {
   const [open, setOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [note, setNote] = useState('')
+  const [downloading, setDownloading] = useState(false)
   const upload = useUploadVersion()
+  const current = asset.current?.file
+  const downloadable = current && (current.scan_status === 'clean' || current.scan_status === 'not_scanned')
   const next = (asset.current?.version_no ?? 0) + 1
   const supported = !file || UPLOAD_EXTENSIONS.includes(extensionOf(file.name))
   const close = (isOpen: boolean) => {
@@ -362,8 +392,8 @@ function NewVersionButton({ asset }: { asset: LibraryAsset }) {
   return (
     <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <FilePlus2 className="h-4 w-4" aria-hidden />
-        New version
+        <Pencil className="h-4 w-4" aria-hidden />
+        Edit
       </Button>
       <Dialog open={open} onOpenChange={close}>
         <DialogContent>
@@ -382,14 +412,39 @@ function NewVersionButton({ asset }: { asset: LibraryAsset }) {
             }}
           >
             <DialogHeader>
-              <DialogTitle>New version of "{asset.title}"</DialogTitle>
+              <DialogTitle>Edit "{asset.title}"</DialogTitle>
               <DialogDescription>
-                It becomes version {next}, which search and AI use. Earlier versions stay in History. The document goes back
-                to Draft until it's approved again.
+                Your saved file becomes version {next}, which search and AI use. Earlier versions stay in History. The
+                document goes back to Draft until it's approved again.
               </DialogDescription>
             </DialogHeader>
+            <ol className="flex list-decimal flex-col gap-1 pl-5 text-sm text-slate-700">
+              <li>
+                Download the file and open it from your browser's downloads.{' '}
+                {current && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0"
+                    disabled={!downloadable || downloading}
+                    onClick={() => {
+                      setDownloading(true)
+                      downloadFile(current.id, current.filename)
+                        .catch((err: Error) => toast.error(err.message))
+                        .finally(() => setDownloading(false))
+                    }}
+                  >
+                    <Download className="h-4 w-4" aria-hidden />
+                    Download {current.filename}
+                  </Button>
+                )}
+              </li>
+              <li>Make your changes and save the file.</li>
+              <li>Choose the saved file below and click Save as new version.</li>
+            </ol>
             <div className="flex flex-col gap-1">
-              <Label htmlFor={`version-file-${asset.id}`}>File</Label>
+              <Label htmlFor={`version-file-${asset.id}`}>Saved file</Label>
               <Input
                 id={`version-file-${asset.id}`}
                 type="file"
@@ -413,13 +468,79 @@ function NewVersionButton({ asset }: { asset: LibraryAsset }) {
                 Cancel
               </Button>
               <Button type="submit" disabled={!file || !supported || upload.isPending}>
-                {upload.isPending ? 'Uploading…' : 'Upload version'}
+                {upload.isPending ? 'Saving…' : 'Save as new version'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+/** Moves the document to the Deleted list, after asking. Copies elsewhere stay. */
+function DeleteButton({ asset }: { asset: LibraryAsset }) {
+  const [open, setOpen] = useState(false)
+  const remove = useDeleteAsset()
+
+  return (
+    <>
+      <Button variant="ghost" size="sm" className="text-status-red" onClick={() => setOpen(true)}>
+        <Trash2 className="h-4 w-4" aria-hidden />
+        Delete
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete "{asset.title}"?</DialogTitle>
+            <DialogDescription>
+              It leaves the library, search and AI, and moves to the Deleted list, where it can be restored. Any copies
+              in other libraries stay.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={remove.isPending}
+              onClick={() =>
+                remove
+                  .mutateAsync(asset.id)
+                  .then(() => {
+                    toast.success(`Deleted "${asset.title}". It's in the Deleted list if you need it back.`)
+                    setOpen(false)
+                  })
+                  .catch((err: Error) => toast.error(err.message))
+              }
+            >
+              {remove.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+function RestoreButton({ asset }: { asset: LibraryAsset }) {
+  const restore = useRestoreAsset()
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={restore.isPending}
+      onClick={() =>
+        restore
+          .mutateAsync(asset.id)
+          .then(() => toast.success(`Restored "${asset.title}"`))
+          .catch((err: Error) => toast.error(err.message))
+      }
+    >
+      <RotateCcw className="h-4 w-4" aria-hidden />
+      Restore
+    </Button>
   )
 }
 

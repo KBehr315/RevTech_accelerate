@@ -77,6 +77,11 @@ export const HELP_CONTENT = {
           its own; nothing is moved out. Copies to Global or Shared, which other clients see, also need this client's
           Training Administrator.
         </p>
+        <p>
+          <strong>Edit</strong> downloads the file; after you save your changes, choose the saved file and it becomes
+          the next version. <strong>History</strong> keeps every version. <strong>Delete</strong> moves a document to
+          the Deleted tab, where it can be restored. Copies of it in other libraries stay, marked in red.
+        </p>
       </>
     ),
   },

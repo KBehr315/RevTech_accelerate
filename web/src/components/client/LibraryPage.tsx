@@ -19,6 +19,7 @@ export function LibraryPage() {
   const shared = useAssets({ sharedWith: client.id })
   const global = useAssets({ scope: 'global' })
   const reference = useAssets({ scope: 'revtech_reference' }, isGka)
+  const deleted = useAssets({ deletedIn: client.id }, canUpload)
   const copies = useAssetCopies((own.data ?? []).map((a) => a.id), isGka)
 
   // Global and Shared copies are seen by other clients, so they also need this client's Training Administrator.
@@ -42,6 +43,7 @@ export function LibraryPage() {
           <TabsTrigger value="shared">Shared{count(shared.data?.length)}</TabsTrigger>
           <TabsTrigger value="global">Global{count(global.data?.length)}</TabsTrigger>
           {isGka && <TabsTrigger value="reference">RevTech Reference{count(reference.data?.length)}</TabsTrigger>}
+          {canUpload && <TabsTrigger value="deleted">Deleted{count(deleted.data?.length)}</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="client" className="flex flex-col gap-4">
@@ -87,6 +89,15 @@ export function LibraryPage() {
               canEdit
               empty='Nothing in RevTech Reference yet. Use "Copy to…" on a document, or upload in the Global Library.'
             />
+          </TabsContent>
+        )}
+
+        {canUpload && (
+          <TabsContent value="deleted" className="flex flex-col gap-4">
+            <p className="text-sm text-slate-600">
+              Documents deleted from {client.name}'s library. They're out of search and AI, and can be restored.
+            </p>
+            <AssetList assets={deleted.data} isLoading={deleted.isLoading} canEdit empty="Nothing has been deleted." />
           </TabsContent>
         )}
       </Tabs>

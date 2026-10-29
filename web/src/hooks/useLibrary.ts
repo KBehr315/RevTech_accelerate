@@ -8,25 +8,40 @@ const LIBRARY_SELECT = `*,
     file:source_files!knowledge_asset_versions_source_file_id_fkey(id, filename, bytes, scan_status)
   ),
   uploader:profiles!knowledge_assets_created_by_fkey(full_name),
+  deleter:profiles!knowledge_assets_deleted_by_fkey(full_name),
   audiences:asset_audiences(client:clients(id, name), client_group:client_groups(id, name)),
   suggestions:duplicate_candidates!duplicate_candidates_asset_id_fkey(
     id, same_name, text_similarity, status,
-    existing:knowledge_assets!duplicate_candidates_existing_asset_id_fkey(id, title)
+    existing:knowledge_assets!duplicate_candidates_existing_asset_id_fkey(id, title, lifecycle_status)
   )`
 
-type Filter = { clientId: string } | { sharedWith: string } | { scope: Exclude<KnowledgeScope, 'client'> }
+type Filter =
+  | { clientId: string }
+  | { sharedWith: string }
+  | { scope: Exclude<KnowledgeScope, 'client'> }
+  /** The Deleted list: a client's deleted documents, or (null) those outside any client. */
+  | { deletedIn: string | null }
 
 const keyOf = (filter: Filter) => ['library', filter]
 
 /**
  * One bucket of the library, newest first, as far as RLS lets the caller see it:
- * a client's own documents, those shared with a client, or a bucket outside any client.
+ * a client's own documents, those shared with a client, a bucket outside any client,
+ * or the deleted documents (archived, 00109).
  */
 export function useAssets(filter: Filter, enabled = true) {
   return useQuery({
     queryKey: keyOf(filter),
     enabled,
     queryFn: async () => {
+      if ('deletedIn' in filter) {
+        const deleted = db.from('knowledge_assets').select(LIBRARY_SELECT).eq('lifecycle_status', 'archived')
+        return unwrap(
+          await (filter.deletedIn ? deleted.eq('client_id', filter.deletedIn) : deleted.is('client_id', null)).order('updated_at', {
+            ascending: false,
+          }),
+        )
+      }
       const query =
         'sharedWith' in filter
           ? db.rpc('client_shared_assets', { p_client_id: filter.sharedWith }).select(LIBRARY_SELECT)
@@ -173,6 +188,32 @@ export function useReadAgain() {
   return useMutation({
     mutationFn: async (assetId: string) => unwrap(await db.rpc('request_extraction', { p_asset_id: assetId })),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['library'] }),
+  })
+}
+
+/** Moves a document to the Deleted list (delete_asset, 00109). Copies of it stay. */
+export function useDeleteAsset() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (assetId: string) => unwrap(await db.rpc('delete_asset', { p_asset_id: assetId })),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['library'] })
+      void queryClient.invalidateQueries({ queryKey: ['library-copies'] })
+      void queryClient.invalidateQueries({ queryKey: ['library-search'] })
+    },
+  })
+}
+
+/** Brings a document back from the Deleted list (restore_asset, 00109). */
+export function useRestoreAsset() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (assetId: string) => unwrap(await db.rpc('restore_asset', { p_asset_id: assetId })),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['library'] })
+      void queryClient.invalidateQueries({ queryKey: ['library-copies'] })
+      void queryClient.invalidateQueries({ queryKey: ['library-search'] })
+    },
   })
 }
 
