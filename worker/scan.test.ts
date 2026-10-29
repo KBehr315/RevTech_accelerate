@@ -1,5 +1,6 @@
 // The scan_file job against a real (PGlite) database, with a stand-in for Defender.
 
+import { randomBytes } from 'node:crypto'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import type { PGlite } from '@electric-sql/pglite'
 import { as, createDb, makeProfile, sql } from '../db/tests/harness.js'
@@ -35,7 +36,7 @@ async function uploaded(name: string): Promise<string> {
   const [file] = await as(pglite, cta)('select * from start_upload($1, $2, null, 10)', [client, name])
   await pglite.transaction(async (tx) => {
     await tx.query('set local role service_role')
-    await tx.query('select complete_upload($1, 10, $2)', [file.id, 'ef'.repeat(32)])
+    await tx.query('select complete_upload($1, 10, $2)', [file.id, randomBytes(32).toString('hex')])
   })
   return file.id
 }

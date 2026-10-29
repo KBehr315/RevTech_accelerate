@@ -266,6 +266,19 @@ export type AssetAudience = {
   created_at: string
 }
 
+/** A new upload that resembles a document already in the library (00108). */
+export type DuplicateCandidate = {
+  id: string
+  asset_id: string
+  existing_asset_id: string
+  same_name: boolean
+  text_similarity: number
+  status: 'open' | 'separate' | 'removed'
+  resolved_by: string | null
+  resolved_at: string | null
+  created_at: string
+}
+
 export type KnowledgeAssetVersion = {
   id: string
   asset_id: string

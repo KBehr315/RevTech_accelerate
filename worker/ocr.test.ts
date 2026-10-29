@@ -2,6 +2,7 @@
 // a real (PGlite) database, with a stand-in model that "transcribes" from what
 // it is sent.
 
+import { randomBytes } from 'node:crypto'
 import { PDFDocument, StandardFonts } from 'pdf-lib'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import type { PGlite } from '@electric-sql/pglite'
@@ -47,7 +48,7 @@ async function uploadAndProcess(who: string, client: string, filename: string, c
   let assetId = ''
   await pglite.transaction(async (tx) => {
     await tx.query('set local role service_role')
-    assetId = ((await tx.query('select id from complete_upload($1, $2, $3)', [file.id, content.length, 'bb'.repeat(32)])).rows[0] as { id: string }).id
+    assetId = ((await tx.query('select id from complete_upload($1, $2, $3)', [file.id, content.length, randomBytes(32).toString('hex')])).rows[0] as { id: string }).id
   })
   while ((await runOnce(db, 'w', handlers, { log: quiet })) > 0) {}
   const [version] = await sql(pglite,

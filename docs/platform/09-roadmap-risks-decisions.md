@@ -126,6 +126,9 @@ CI gates the deploy: unit + SQL + API tests must pass before the image is built;
 | Client document into RevTech Reference | **Copied**, never moved: the client keeps its file, and RevTech Reference holds its own copy linked back to the original |
 | AI use of RevTech Reference | Searched first when generating training for any client. Content, structure and approach may all be reused; the source client's names and data must not appear. Generation replaces them, and a leak check flags any name, identifier or figure from the source client in another client's draft before review |
 | Search results | Grouped by document: each file appears once, with its best matches beneath |
+| Exact duplicate uploads | Refused, naming the existing document when the uploader can see it. Compared within one client only (or, outside clients, among RevTech's own documents) |
+| Near duplicates | Uploaded, then offered as a newer version of the document they resemble (same name once version words are ignored, or at least half the same text): make it the newest version, keep separate, or remove (archive) the upload |
+| Versions | Can be uploaded on purpose with a note of what changed; older versions stay in History. A new version goes back to Draft and Human Approval Required |
 
 ### Still open, needed by phase
 

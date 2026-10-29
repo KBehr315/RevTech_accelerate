@@ -6,7 +6,8 @@ import { anthropicAdapter } from './ai/anthropic.ts'
 import { AiRefusedError, createGateway, type Adapter, type Classification } from './ai/gateway.ts'
 import { extract, type Chunk } from './extract/index.ts'
 import { ocrImage, ocrPdfPages, type Complete } from './extract/ocr.ts'
-import type { Handler } from './queue.ts'
+import { findResemblances, type Candidate } from './extract/similar.ts'
+import type { Db, Handler } from './queue.ts'
 
 /** What handlers reach outside the database, replaced by stand-ins in tests. */
 export type Deps = {
@@ -141,6 +142,8 @@ export function makeHandlers({ adapters, scanVerdict, readBlob }: Deps): Record<
           }
         }
 
+        // Before saving: the Library stops refreshing once the file shows as read.
+        const resembles = await suggestDuplicates(db, versionId, target.filename, chunks)
         const [{ saved }] = (
           await db.query<{ saved: number }>('select public.save_extraction($1, $2, $3, $4) as saved', [
             versionId,
@@ -149,7 +152,7 @@ export function makeHandlers({ adapters, scanVerdict, readBlob }: Deps): Record<
             JSON.stringify(chunks),
           ])
         ).rows
-        return { status: outcome, chunks: saved, detail }
+        return { status: outcome, chunks: saved, detail, ...(resembles ? { resembles } : {}) }
       } catch (err) {
         const reason = err instanceof Error ? err.message : String(err)
         await status(job.attempts >= job.max_attempts ? 'failed' : 'pending', reason)
@@ -157,6 +160,25 @@ export function makeHandlers({ adapters, scanVerdict, readBlob }: Deps): Record<
       }
     },
   }
+}
+
+/**
+ * For a new upload, records the documents in the same library it resembles
+ * (00108), so the Library can offer to make it their next version. Returns how
+ * many were recorded.
+ */
+async function suggestDuplicates(db: Db, versionId: string, filename: string, chunks: Chunk[]): Promise<number> {
+  const { rows } = await db.query<Candidate>('select * from public.similarity_candidates($1)', [versionId])
+  if (!rows.length) return 0
+  const found = findResemblances(filename, chunks.map((c) => c.text).join(' '), rows)
+  if (!found.length) return 0
+  const [{ saved }] = (
+    await db.query<{ saved: number }>('select public.record_duplicate_candidates($1, $2) as saved', [
+      versionId,
+      JSON.stringify(found),
+    ])
+  ).rows
+  return saved
 }
 
 export const handlers = makeHandlers(deps)

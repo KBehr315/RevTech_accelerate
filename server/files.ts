@@ -1,6 +1,7 @@
 // Uploading and downloading knowledge files (db/migrations/00103).
 //
 //   PUT /api/upload?filename=…&client_id=…   the raw file as the body, one file per request
+//       …&asset_id=…&note=…                 or as a new version of a document, with what changed
 //   GET /api/files/:id                        the file, if the caller may read it and it passed its scan
 //
 // The database decides who may do what; this server only moves bytes. It
@@ -29,6 +30,8 @@ export async function upload(req: Request, res: Response, sendError: (res: Respo
       p_filename: String(req.query.filename ?? ''),
       p_mime_type: req.headers['content-type'] ?? null,
       p_bytes: declared,
+      p_asset_id: req.query.asset_id || null,
+      p_change_note: req.query.note || null,
     });
 
     const hash = createHash('sha256');

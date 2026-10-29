@@ -1,6 +1,7 @@
 // Upload -> scan -> extract -> search, end to end against a real (PGlite)
 // database, with file contents served from memory instead of Blob Storage.
 
+import { randomBytes } from 'node:crypto'
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { PGlite } from '@electric-sql/pglite'
 import { as, createDb, makeProfile, sql } from '../db/tests/harness.js'
@@ -33,7 +34,7 @@ async function uploadAndProcess(who: string, client: string, filename: string, c
   let asset
   await pglite.transaction(async (tx) => {
     await tx.query('set local role service_role')
-    ;[asset] = (await tx.query('select * from complete_upload($1, $2, $3)', [file.id, content.length, 'aa'.repeat(32)])).rows
+    ;[asset] = (await tx.query('select * from complete_upload($1, $2, $3)', [file.id, content.length, randomBytes(32).toString('hex')])).rows
   })
   while ((await runOnce(db, 'w', handlers, { log: quiet })) > 0) {}
   return asset as unknown as { id: string; current_version_id: string }
