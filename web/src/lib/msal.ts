@@ -1,4 +1,4 @@
-import { InteractionRequiredAuthError, PublicClientApplication, type AccountInfo } from '@azure/msal-browser'
+import { BrowserAuthError, InteractionRequiredAuthError, PublicClientApplication, type AccountInfo } from '@azure/msal-browser'
 
 const clientId = import.meta.env.VITE_AZURE_CLIENT_ID
 const tenantId = import.meta.env.VITE_AZURE_TENANT_ID
@@ -41,8 +41,25 @@ export function signOut(): Promise<void> {
   return msal.logoutRedirect({ account: msal.getActiveAccount() })
 }
 
-/** The Microsoft ID token the API server verifies (its audience is this app's client id). */
-export async function getIdToken(): Promise<string> {
+// Silent renewal can fail without Microsoft asking for interaction: the hidden
+// frame it uses times out (slow network, blocked third-party cookies). Signing
+// in again by redirect fixes both, and returns to the same page.
+const SIGN_IN_AGAIN = ['timed_out', 'monitor_window_timeout', 'block_iframe_reload']
+
+let _inFlight: Promise<string> | null = null
+
+/**
+ * The Microsoft ID token the API server verifies (its audience is this app's client id).
+ * A page fires many requests at once; they share one renewal rather than each starting their own.
+ */
+export function getIdToken(): Promise<string> {
+  _inFlight ??= fetchIdToken().finally(() => {
+    _inFlight = null
+  })
+  return _inFlight
+}
+
+async function fetchIdToken(): Promise<string> {
   await msalReady()
   const account = msal.getActiveAccount()
   if (!account) throw new Error('Not signed in')
@@ -54,8 +71,9 @@ export async function getIdToken(): Promise<string> {
     const result = await msal.acquireTokenSilent({ scopes: LOGIN_SCOPES, account, forceRefresh })
     return result.idToken
   } catch (err) {
-    if (err instanceof InteractionRequiredAuthError) {
+    if (err instanceof InteractionRequiredAuthError || (err instanceof BrowserAuthError && SIGN_IN_AGAIN.includes(err.errorCode))) {
       await msal.acquireTokenRedirect({ scopes: LOGIN_SCOPES, account })
+      throw new Error('Your sign-in expired. Signing you in again…', { cause: err })
     }
     throw err
   }
