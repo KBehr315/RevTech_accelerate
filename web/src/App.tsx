@@ -28,6 +28,7 @@ import {
   PlatformSettingsPage,
 } from '@/components/platform/PlatformPages'
 import { AiProvidersPage } from '@/components/platform/AiProvidersPage'
+import { ViewAsPage } from '@/components/platform/ViewAsPage'
 
 function App() {
   const initialize = useAuthStore((s) => s.initialize)
@@ -74,6 +75,7 @@ function App() {
                 <Route path="/platform" element={<PlatformHomePage />} />
                 <Route path="/platform/clients" element={<ClientsPage />} />
                 <Route path="/platform/people" element={<PeoplePage />} />
+                <Route path="/platform/view-as" element={<ViewAsPage />} />
                 <Route path="/platform/ai-providers" element={<AiProvidersPage />} />
                 <Route path="/platform/audit" element={<PlatformAuditPage />} />
                 <Route path="/platform/settings" element={<PlatformSettingsPage />} />

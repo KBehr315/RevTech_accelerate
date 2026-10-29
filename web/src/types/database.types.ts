@@ -275,6 +275,7 @@ export type Database = {
       }
       request_extraction: { Args: { p_asset_id: string }; Returns: Job }
       delete_asset: { Args: { p_asset_id: string }; Returns: KnowledgeAsset }
+      start_preview: { Args: { p_client_id: string; p_role: ClientRole }; Returns: undefined }
       restore_asset: { Args: { p_asset_id: string }; Returns: KnowledgeAsset }
       asset_copies: { Args: { p_asset_ids: string[] }; Returns: { copied_from_asset_id: string; scope: KnowledgeScope }[] }
       client_shared_assets: {

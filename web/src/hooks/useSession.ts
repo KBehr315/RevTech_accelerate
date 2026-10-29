@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { db, unwrap } from '@/lib/db'
 import { useAuthStore } from '@/store/authStore'
+import { usePreviewStore } from '@/store/previewStore'
 import type { Client, ClientRole, PlatformRole } from '@/types/domain'
 
 export interface Workspace {
@@ -20,11 +21,19 @@ export interface Session {
  */
 export function useSession() {
   const profileId = useAuthStore((s) => s.profile?.id)
+  const preview = usePreviewStore((s) => s.preview)
 
   return useQuery({
-    queryKey: ['session', profileId],
+    queryKey: ['session', profileId, preview?.client.id ?? null, preview?.role ?? null],
     enabled: !!profileId,
     queryFn: async (): Promise<Session> => {
+      // While previewing, the person is only the previewed role in that one client.
+      if (preview) {
+        const client = unwrap(
+          await db.from('clients').select('id, name, slug, status, branding').eq('id', preview.client.id).single(),
+        )
+        return { platformRoles: [], workspaces: [{ client, roles: [preview.role] }] }
+      }
       const [grants, memberships] = await Promise.all([
         db.from('platform_role_grants').select('role').eq('profile_id', profileId!),
         db
@@ -69,7 +78,8 @@ export function destinations(session: Session): Destination[] {
   if (session.workspaces.some((w) => w.roles.includes('learner'))) {
     list.push({ key: 'learn', to: '/learn', kind: 'learn', label: 'My training' })
   }
-  if (session.platformRoles.includes('global_knowledge_admin')) {
+  // Platform Administrators reach Global from the Platform administration menu.
+  if (session.platformRoles.includes('global_knowledge_admin') && !session.platformRoles.includes('platform_admin')) {
     list.push({ key: 'global', to: '/global', kind: 'global', label: 'Global Context' })
   }
   if (session.platformRoles.includes('platform_admin')) {

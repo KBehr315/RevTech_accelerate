@@ -1,6 +1,9 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
+  ArrowLeft,
   Building2,
+  Eye,
+  Globe,
   Cpu,
   FileClock,
   GraduationCap,
@@ -14,19 +17,33 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
-import { useSession } from '@/hooks/useSession'
+import { hasPlatformRole, useSession, type Session } from '@/hooks/useSession'
 import { cn, initials } from '@/lib/utils'
 import { useActiveContext, type ActiveContext } from './context'
 import { ContextSwitcher } from './ContextSwitcher'
+import { PreviewBanner } from './PreviewBanner'
 
 interface NavItem {
   to: string
   label: string
   icon: LucideIcon
   end?: boolean
+  /** Starts a titled group in the menu. */
+  section?: string
 }
 
-function navFor(context: ActiveContext): NavItem[] {
+const GLOBAL_NAV: NavItem[] = [
+  { to: '/global', label: 'Global home', icon: Globe, end: true },
+  { to: '/global/library', label: 'Global Library', icon: Library },
+  { to: '/global/client-groups', label: 'Client groups', icon: UsersRound },
+]
+
+function navFor(context: ActiveContext, session: Session | undefined): NavItem[] {
+  const isPlatformAdmin = hasPlatformRole(session, 'platform_admin')
+  // Platform Administrators who also look after RevTech knowledge get both in one menu.
+  const globalSection: NavItem[] = hasPlatformRole(session, 'global_knowledge_admin')
+    ? GLOBAL_NAV.map((item, i) => (i === 0 ? { ...item, section: 'Global knowledge' } : item))
+    : []
   switch (context.kind) {
     case 'client': {
       const base = `/c/${context.slug}`
@@ -42,20 +59,10 @@ function navFor(context: ActiveContext): NavItem[] {
       return items
     }
     case 'global':
-      return [
-        { to: '/global', label: 'Home', icon: Home, end: true },
-        { to: '/global/library', label: 'Library', icon: Library },
-        { to: '/global/client-groups', label: 'Client groups', icon: UsersRound },
-      ]
+      if (!isPlatformAdmin) return GLOBAL_NAV
+      return [...platformNav(), ...globalSection]
     case 'platform':
-      return [
-        { to: '/platform', label: 'Overview', icon: Home, end: true },
-        { to: '/platform/clients', label: 'Clients', icon: Building2 },
-        { to: '/platform/people', label: 'People & roles', icon: Users },
-        { to: '/platform/ai-providers', label: 'AI providers', icon: Cpu },
-        { to: '/platform/audit', label: 'Audit log', icon: FileClock },
-        { to: '/platform/settings', label: 'Settings', icon: Settings },
-      ]
+      return [...platformNav(), ...globalSection]
     case 'learn':
       return [{ to: '/learn', label: 'My training', icon: GraduationCap, end: true }]
     default:
@@ -63,39 +70,77 @@ function navFor(context: ActiveContext): NavItem[] {
   }
 }
 
+function platformNav(): NavItem[] {
+  return [
+    { to: '/platform', label: 'Overview', icon: Home, end: true },
+    { to: '/platform/clients', label: 'Clients', icon: Building2 },
+    { to: '/platform/people', label: 'People & roles', icon: Users },
+    { to: '/platform/view-as', label: 'View as…', icon: Eye },
+    { to: '/platform/ai-providers', label: 'AI providers', icon: Cpu },
+    { to: '/platform/audit', label: 'Audit log', icon: FileClock },
+    { to: '/platform/settings', label: 'Settings', icon: Settings },
+  ]
+}
+
+/** Back to the previous screen; hidden on the first page of the visit, where there is none. */
+function BackButton() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  if (location.key === 'default') return null
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(-1)}
+      className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-medium text-slate-600 hover:bg-surface-muted hover:text-slate-900"
+    >
+      <ArrowLeft className="h-4 w-4" aria-hidden />
+      Back
+    </button>
+  )
+}
+
 export function AppShell() {
   const profile = useAuthStore((s) => s.profile)
   const signOut = useAuthStore((s) => s.signOut)
   const context = useActiveContext()
   const { data: session } = useSession()
-  const links = navFor(context)
+  const links = navFor(context, session)
   const hasOtherContexts = (session?.workspaces.length ?? 0) + (session?.platformRoles.length ?? 0) > 1
+  // The logo goes to Platform administration for those allowed there, otherwise home.
+  const logoTarget = hasPlatformRole(session, 'platform_admin') ? '/platform' : '/'
 
   return (
     <div className="flex min-h-svh">
       <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-white md:flex">
-        <div className="flex flex-col items-center justify-center gap-1 border-b border-border px-2 py-3">
-          <img src="/revtech-logo.png" alt="RevTech" className="h-[72px] w-auto" />
+        <Link
+          to={logoTarget}
+          className="flex flex-col items-center justify-center gap-1 border-b border-border px-2 py-3 hover:bg-surface-muted"
+        >
+          <img src="/revtech-logo.png" alt="RevTech, go to the home page" className="h-[72px] w-auto" />
           <span className="text-center font-heading text-sm font-bold uppercase tracking-wide text-brand-900">
             Accelerate
           </span>
-        </div>
+        </Link>
         <nav aria-label="Main" className="flex flex-1 flex-col gap-1 p-3">
           {links.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              end={link.end}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-surface-muted hover:text-[#0B76A0]',
-                  isActive && 'bg-brand-50 text-brand-700',
-                )
-              }
-            >
-              <link.icon className="h-4 w-4" aria-hidden />
-              {link.label}
-            </NavLink>
+            <div key={link.to} className="flex flex-col gap-1">
+              {link.section && (
+                <p className="mt-4 px-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{link.section}</p>
+              )}
+              <NavLink
+                to={link.to}
+                end={link.end}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-surface-muted hover:text-[#0B76A0]',
+                    isActive && 'bg-brand-50 text-brand-700',
+                  )
+                }
+              >
+                <link.icon className="h-4 w-4" aria-hidden />
+                {link.label}
+              </NavLink>
+            </div>
           ))}
           {hasOtherContexts && (
             <NavLink
@@ -125,7 +170,9 @@ export function AppShell() {
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
+        <PreviewBanner />
         <header className="flex items-center gap-3 border-b border-border bg-white px-4 py-2 md:px-6">
+          <BackButton />
           <ContextSwitcher />
         </header>
         <nav aria-label="Main" className="flex gap-1 overflow-x-auto border-b border-border bg-white px-2 py-1 md:hidden">

@@ -132,6 +132,8 @@ CI gates the deploy: unit + SQL + API tests must pass before the image is built;
 | Editing documents | **Edit** downloads the file; the person changes it in Word or Excel and uploads the saved file as the next version. In-browser editing (Microsoft 365 or a built-in editor) not pursued for now |
 | Deleting documents | Soft delete to a **Deleted** list, restorable, with who and when recorded. Allowed for the people who may add versions: a client's Training Administrators and Contributors; outside clients, Global Knowledge Administrators |
 | Copies of a deleted document | Stay in RevTech Reference, Global or Shared, with the title shown in red and a note that the original was deleted |
+| Previewing other roles ("View as") | Platform Administrators can see the platform as one role in one client: the database treats them as exactly that role, the preview is read-only, and each one is audited. Learner first; other roles on request |
+| Navigation | The RevTech logo goes to Platform administration (for Platform Administrators) or home. Global knowledge sits in the Platform administration menu for Platform Administrators, not in the context drop-down. A Back button returns to the previous screen |
 
 ### Still open, needed by phase
 

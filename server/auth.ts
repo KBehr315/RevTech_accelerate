@@ -125,8 +125,28 @@ export async function callerProfile(authHeader: string | undefined, { fresh = fa
   return profile;
 }
 
-export function postgrestToken(profile: Profile): Promise<string> {
-  return mintToken({ role: 'authenticated', sub: profile.id, email: profile.email });
+/* "View as" (db/migrations/00110): the browser sends X-View-As: <client id>:<role>
+   while a Platform Administrator previews a role. The database decides whether
+   to honour it; here we only check its shape. */
+export type ViewAs = { client_id: string; role: string };
+const VIEW_AS = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):([a-z_]{1,40})$/;
+
+export function viewAs(header: string | string[] | undefined): ViewAs | null {
+  if (header === undefined) return null;
+  const match = typeof header === 'string' ? VIEW_AS.exec(header) : null;
+  if (!match) throw httpError(400, 'Invalid X-View-As header.');
+  return { client_id: match[1], role: match[2] };
+}
+
+/* Previews are read-only: only GET and HEAD, which PostgREST runs in read-only transactions. */
+export function refuseWriteWhilePreviewing(method: string, preview: ViewAs | null): void {
+  if (preview && !['GET', 'HEAD'].includes(method)) {
+    throw httpError(403, 'Previewing is read-only. Exit the preview to make changes.');
+  }
+}
+
+export function postgrestToken(profile: Profile, preview: ViewAs | null = null): Promise<string> {
+  return mintToken({ role: 'authenticated', sub: profile.id, email: profile.email, ...(preview && { view_as: preview }) });
 }
 
 /* For the few functions only this server may call (ensure_profile, complete_upload…). */
