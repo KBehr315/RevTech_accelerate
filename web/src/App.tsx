@@ -20,6 +20,8 @@ import { ClientSetupWizard } from '@/components/client/ClientSetupWizard'
 import { LibraryPage } from '@/components/client/LibraryPage'
 import { MembersPage } from '@/components/client/MembersPage'
 import { ClientAuditPage } from '@/components/client/ClientAuditPage'
+import { NewTrainingPage } from '@/components/training/NewTrainingPage'
+import { TrainingDraftPage, TrainingPage } from '@/components/training/TrainingPages'
 import {
   ClientsPage,
   PeoplePage,
@@ -62,6 +64,11 @@ function App() {
                 </Route>
                 <Route element={<RequireClientRole anyOf={['client_training_admin', 'contributor', 'reviewer']} />}>
                   <Route path="library" element={<LibraryPage />} />
+                </Route>
+                <Route element={<RequireClientRole anyOf={['client_training_admin', 'contributor']} />}>
+                  <Route path="training" element={<TrainingPage />} />
+                  <Route path="training/new" element={<NewTrainingPage />} />
+                  <Route path="training/:draftId" element={<TrainingDraftPage />} />
                 </Route>
               </Route>
 
