@@ -1,13 +1,13 @@
-// Downloading a training draft (db/migrations/00111).
+// Downloading a training draft (db/migrations/00111, 00112).
 //
 //   GET /api/training/:id/slides.pptx   the draft's slides as a PowerPoint deck
 //
 // Everything is read through PostgREST as the caller, so RLS decides whether
-// they may see the draft, its documents and their pictures.
+// they may see the draft, its checks, its documents and their pictures.
 
 import type { Request, Response } from 'express';
 import { callerProfile, httpError, PGRST_URL, postgrestToken, rpc, viewAs, type HttpError } from './auth.ts';
-import { imageSize, renderSlides, type DeckContent, type Picture } from './slides.ts';
+import { imageSize, renderSlides, type Check, type DeckContent, type Picture } from './slides.ts';
 import { filesContainer } from './storage.ts';
 
 const CLASSIFICATIONS = ['public', 'internal', 'confidential', 'client_confidential', 'controlled', 'export_controlled'];
@@ -86,7 +86,14 @@ export async function downloadSlides(req: Request, res: Response, sendError: (re
       }
     }
 
+    const reviews = await select<{ part_id: string; checked_at: string; checker: { full_name: string | null } | null }>(
+      token,
+      `training_reviews?draft_id=eq.${id}&select=part_id,checked_at,checker:profiles!training_reviews_checked_by_fkey(full_name)`,
+    );
+    const checks = new Map<string, Check>(reviews.map((r) => [r.part_id, { name: r.checker?.full_name || 'a reviewer', at: r.checked_at }]));
+
     const deck = await renderSlides(draft.content, {
+      checks,
       clientName: draft.client.name,
       classification: CLASSIFICATION_LABELS[classification] ?? classification,
       pictures,

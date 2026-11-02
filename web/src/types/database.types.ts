@@ -27,6 +27,8 @@ import type {
   SearchResult,
   SourceFile,
   TrainingDraft,
+  TrainingReview,
+  TrainingRevision,
   TrainingOutput,
   TrainingPiece,
 } from './domain'
@@ -260,6 +262,21 @@ export type Database = {
           },
         ]
       >
+      training_reviews: Table<
+        TrainingReview,
+        never,
+        never,
+        [
+          {
+            foreignKeyName: 'training_reviews_checked_by_fkey'
+            columns: ['checked_by']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      >
+      training_revisions: Table<TrainingRevision>
     }
     Views: { [_ in never]: never }
     Functions: {
@@ -305,6 +322,9 @@ export type Database = {
         }
         Returns: TrainingDraft
       }
+      check_training_part: { Args: { p_draft_id: string; p_part_id: string; p_checked: boolean }; Returns: undefined }
+      edit_training_part: { Args: { p_draft_id: string; p_part_id: string; p_part: Record<string, unknown> }; Returns: TrainingDraft }
+      revise_training_part: { Args: { p_draft_id: string; p_part_id: string; p_instruction: string }; Returns: TrainingRevision }
       asset_copies: { Args: { p_asset_ids: string[] }; Returns: { copied_from_asset_id: string; scope: KnowledgeScope }[] }
       client_shared_assets: {
         Args: { p_client_id: string }

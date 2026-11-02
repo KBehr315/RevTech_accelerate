@@ -1,16 +1,17 @@
 import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { AlertTriangle, Download, Loader2, Sparkles } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Download, Loader2, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PageHeader } from '@/components/common/PageHeader'
 import { useWorkspace } from '@/components/client/workspace'
-import { useDownloadSlides, useTrainingDraft, useTrainingDrafts } from '@/hooks/useTraining'
-import type { ProvenanceLabel, TrainingBlock, TrainingContent, TrainingDraft } from '@/types/domain'
+import { useDownloadSlides, useTrainingDraft, useTrainingDrafts, useTrainingReviews, useTrainingRevisions } from '@/hooks/useTraining'
+import type { ProvenanceLabel, TrainingBlock, TrainingContent, TrainingDraft, TrainingRevision } from '@/types/domain'
 import { DRAFT_STATUS_LABELS, OUTPUT_LABELS, PIECE_LABELS } from './labels'
+import { CheckBox, ReviewControls, type Check } from './Review'
 
 const STATUS_VARIANT = { queued: 'neutral', generating: 'default', ready: 'warning', failed: 'danger' } as const
 
@@ -130,6 +131,15 @@ function Writing({ draft }: { draft: TrainingDraft }) {
 }
 
 function DraftContent({ draft, content }: { draft: TrainingDraft; content: TrainingContent }) {
+  const { data: reviews } = useTrainingReviews(draft.id)
+  const { data: revisions } = useTrainingRevisions(draft.id)
+  const checks = new Map<string, Check>(
+    (reviews ?? []).map((r) => [r.part_id, { name: r.checker?.full_name || 'a reviewer', at: r.checked_at }]),
+  )
+  // Newest first, so the first one per piece is its latest.
+  const latest = new Map<string, TrainingRevision>()
+  for (const r of revisions ?? []) if (!latest.has(r.part_id)) latest.set(r.part_id, r)
+
   const sourceTitle = (citation: string) => content.sources.find((s) => s.ref === citation.split('.')[0])?.title ?? citation
 
   const Provenance = ({ label, citations }: { label: ProvenanceLabel; citations: string[] }) =>
@@ -137,9 +147,19 @@ function DraftContent({ draft, content }: { draft: TrainingDraft; content: Train
       <span className="text-xs text-status-green" title={citations.join(', ')}>
         From {[...new Set(citations.map(sourceTitle))].join(', ')}
       </span>
+    ) : label === 'edited' ? (
+      <span className="text-xs text-slate-500">Edited by a reviewer</span>
     ) : (
       <span className="text-xs text-status-yellow">AI-generated: check this</span>
     )
+
+  // AI-generated pieces in the outputs that were asked for, to count what's left to check.
+  const aiParts = [
+    ...(draft.outputs.includes('lesson') ? content.sections.flatMap((s) => s.blocks) : []),
+    ...(draft.outputs.includes('slides') ? content.sections.flatMap((s) => s.slides) : []),
+    ...content.quiz,
+  ].filter((p) => p.label === 'ai_generated')
+  const unchecked = aiParts.filter((p) => !checks.has(p.id)).length
 
   return (
     <>
@@ -160,18 +180,48 @@ function DraftContent({ draft, content }: { draft: TrainingDraft; content: Train
             </div>
           )}
           <p className="text-xs text-slate-500">
-            Coming next: play the interactive lesson, and edit the draft. The PowerPoint's speaker notes say which source each slide came from.
+            Coming next: play the interactive lesson, and a full editor. The PowerPoint's speaker notes say which source each slide came from
+            and whether it has been checked.
           </p>
         </CardContent>
       </Card>
+
+      {aiParts.length > 0 && (
+        <Card className={unchecked ? 'border-status-yellow' : 'border-status-green'}>
+          <CardContent className="flex items-start gap-3 p-4 text-sm">
+            {unchecked ? (
+              <AlertTriangle className="h-5 w-5 shrink-0 text-status-yellow" aria-hidden />
+            ) : (
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-status-green" aria-hidden />
+            )}
+            <div>
+              <p className="font-medium text-slate-900">
+                {unchecked
+                  ? `${unchecked} of ${aiParts.length} AI-generated piece${aiParts.length === 1 ? '' : 's'} not checked yet`
+                  : `All ${aiParts.length} AI-generated pieces are checked`}
+              </p>
+              <p className="text-slate-600">
+                Read each piece marked "AI-generated" below. Tick <span className="font-medium">Checked</span> if it's right, or click{' '}
+                <span className="font-medium">Revise</span> to have Claude rewrite it or to change it yourself.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {content.review_notes.length > 0 && (
         <Card className="border-status-yellow">
           <CardContent className="p-5 text-sm">
             <p className="font-medium text-slate-900">Check these before using the training</p>
-            <ul className="ml-5 mt-2 list-disc text-slate-700">
+            <p className="text-xs text-slate-500">
+              {content.review_notes.filter((_, i) => checks.has(`note:${i}`)).length} of {content.review_notes.length} done
+            </p>
+            <ul className="mt-3 flex flex-col gap-3">
               {content.review_notes.map((note, i) => (
-                <li key={i}>{note}</li>
+                <li key={i} className="flex flex-col gap-1 border-l-4 border-amber-100 pl-3">
+                  <span className={checks.has(`note:${i}`) ? 'text-slate-400 line-through' : 'text-slate-700'}>{note}</span>
+                  <CheckBox draftId={draft.id} partId={`note:${i}`} check={checks.get(`note:${i}`)} />
+                </li>
               ))}
             </ul>
           </CardContent>
@@ -193,13 +243,14 @@ function DraftContent({ draft, content }: { draft: TrainingDraft; content: Train
                 <h2 className="font-heading text-lg font-semibold text-slate-900">
                   {i + 1}. {section.heading}
                 </h2>
-                {section.blocks.map((block, j) => (
-                  <div key={j} className="flex flex-col gap-1 border-l-4 border-brand-100 pl-3">
+                {section.blocks.map((block) => (
+                  <div key={block.id} className="flex flex-col gap-1 border-l-4 border-brand-100 pl-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="neutral">{block.type === 'text' ? 'Text' : (PIECE_LABELS[block.type as keyof typeof PIECE_LABELS] ?? block.type)}</Badge>
                       <Provenance label={block.label} citations={block.citations} />
                     </div>
                     <BlockView block={block} content={content} />
+                    <ReviewControls draftId={draft.id} item={{ kind: 'block', part: block }} check={checks.get(block.id)} revision={latest.get(block.id)} />
                   </div>
                 ))}
               </CardContent>
@@ -209,7 +260,7 @@ function DraftContent({ draft, content }: { draft: TrainingDraft; content: Train
 
         <TabsContent value="slides" className="flex flex-col gap-3">
           {content.sections.flatMap((section) => section.slides).map((slide, i) => (
-            <Card key={i}>
+            <Card key={slide.id}>
               <CardContent className="grid gap-4 p-5 text-sm md:grid-cols-2">
                 <div className="flex flex-col gap-2 rounded-lg border border-border bg-white p-4 shadow-sm">
                   <p className="text-xs text-slate-400">Slide {i + 2}</p>
@@ -225,6 +276,7 @@ function DraftContent({ draft, content }: { draft: TrainingDraft; content: Train
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Speaker notes</p>
                   <p className="whitespace-pre-wrap text-slate-700">{slide.notes}</p>
                   <Provenance label={slide.label} citations={slide.citations} />
+                  <ReviewControls draftId={draft.id} item={{ kind: 'slide', part: slide }} check={checks.get(slide.id)} revision={latest.get(slide.id)} />
                 </div>
               </CardContent>
             </Card>
@@ -234,7 +286,7 @@ function DraftContent({ draft, content }: { draft: TrainingDraft; content: Train
         <TabsContent value="quiz" className="flex flex-col gap-3">
           {!content.quiz.length && <p className="text-sm text-slate-500">No quiz questions.</p>}
           {content.quiz.map((q, i) => (
-            <Card key={i}>
+            <Card key={q.id}>
               <CardContent className="flex flex-col gap-2 p-5 text-sm">
                 <p className="font-medium text-slate-900">
                   {i + 1}. {q.question}
@@ -249,6 +301,7 @@ function DraftContent({ draft, content }: { draft: TrainingDraft; content: Train
                 </ul>
                 <p className="text-slate-600">{q.explanation}</p>
                 <Provenance label={q.label} citations={q.citations} />
+                <ReviewControls draftId={draft.id} item={{ kind: 'question', part: q }} check={checks.get(q.id)} revision={latest.get(q.id)} />
               </CardContent>
             </Card>
           ))}

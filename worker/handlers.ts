@@ -8,6 +8,7 @@ import { extract, type Chunk } from './extract/index.ts'
 import { ocrImage, ocrPdfPages, type Complete } from './extract/ocr.ts'
 import { findResemblances, type Candidate } from './extract/similar.ts'
 import { generateTraining } from './training/generate.ts'
+import { reviseTraining } from './training/revise.ts'
 import type { Db, Handler } from './queue.ts'
 
 /** What handlers reach outside the database, replaced by stand-ins in tests. */
@@ -163,6 +164,9 @@ export function makeHandlers({ adapters, scanVerdict, readBlob }: Deps): Record<
 
     /** Writes a training draft from a description and optional documents (worker/training/). */
     generate_training: generateTraining({ adapters, readBlob }),
+
+    /** Rewrites one piece of a draft from a reviewer's instruction (00112). */
+    revise_training: reviseTraining({ adapters, readBlob }),
   }
 }
 

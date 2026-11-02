@@ -162,7 +162,7 @@ describe('writing a draft', () => {
     expect(section.blocks[0]).toMatchObject({ citations: ['S1.1'], label: 'source' })
     expect(section.slides[0]).toMatchObject({ citations: ['S1.1'], label: 'source' })
     expect(draft.content.review_notes).toContain('Slide "Posting": F0718 is not in the passages it cites. Check it.')
-    expect(draft.content.sources).toEqual([{ ref: 'S1', asset_id: doc, title: 'Meridian GL procedure' }])
+    expect(draft.content.sources).toEqual([{ ref: 'S1', asset_id: doc, title: 'Meridian GL procedure', public_title: 'Meridian GL procedure' }])
     expect(draft.content.videos).toEqual([{ ref: 'video:1', url: 'https://youtu.be/abc123', note: 'Overview' }])
   })
 
@@ -172,5 +172,119 @@ describe('writing a draft', () => {
     expect(calls).toHaveLength(0)
     expect(draft.status).toBe('failed')
     expect(draft.status_detail).toMatch(/No enabled AI provider is allowed/)
+  })
+})
+
+describe('writing for the client', () => {
+  it("names only the client: other companies the sources name, and the platform's other clients, become the client", async () => {
+    const doc = await documentWith(cta, meridian, 'Codan GL procedure', 'Codan posts journal entries with FB50.')
+    answer = draftAnswer({
+      summary: "In Codan's system you post entries.",
+      sections: [{
+        heading: 'Posting at Codan',
+        blocks: [block({ body: 'Codan and Calder post with FB50. Codanite is a mineral.', citations: ['S1.1'] })],
+        slides: [],
+      }],
+      other_companies: ['Codan', 'Meridian'],
+    })
+    const [started] = await start(cta, meridian, 'Journal entries', [doc])
+    const draft = await generate(started.id)
+
+    expect(calls[0].messages[0].content).toMatch(/The training is for Meridian\. Name no other company\./)
+    expect(draft.content.summary).toBe("In Meridian's system you post entries.")
+    expect(draft.content.sections[0].heading).toBe('Posting at Meridian')
+    // Whole words only: "Codanite" stays.
+    expect(draft.content.sections[0].blocks[0].body).toBe('Meridian and Meridian post with FB50. Codanite is a mineral.')
+    expect(draft.content.review_notes).toContain('Names of other companies (Codan, Calder) were replaced with Meridian. Check the wording still reads well.')
+    // The library keeps the document's real name; the deck gets the client's.
+    expect(draft.content.sources![0]).toMatchObject({ title: 'Codan GL procedure', public_title: 'Meridian GL procedure' })
+    expect(draft.content.renamed).toEqual(['Calder', 'Codan'])
+  })
+})
+
+describe('reviewing a draft', () => {
+  let draftId: string
+  let blockId: string
+  let questionId: string
+
+  beforeAll(async () => {
+    calls = []
+    answer = draftAnswer()
+    const [started] = await start(author, meridian, 'Journal entries')
+    draftId = started.id
+    const draft = await generate(draftId)
+    blockId = draft.content.sections[0].blocks[0].id!
+    questionId = draft.content.quiz[0].id!
+  })
+
+  const checks = async () => sql(pglite, 'select part_id, checked_by from training_reviews where draft_id = $1 order by part_id', [draftId])
+  const content = async () => ((await sql(pglite, 'select content from training_drafts where id = $1', [draftId]))[0] as { content: Draft }).content
+
+  it('gives every piece an id', async () => {
+    const draft = await content()
+    expect(draft.sections[0].slides[0].id).toMatch(/^[0-9a-f-]{36}$/)
+    expect(new Set([blockId, questionId, draft.sections[0].slides[0].id]).size).toBe(3)
+  })
+
+  it('lets the author and Training Administrators tick pieces and notes as checked, and no one else', async () => {
+    await as(pglite, author)('select check_training_part($1, $2, true)', [draftId, blockId])
+    await as(pglite, cta)("select check_training_part($1, 'note:0', true)", [draftId])
+    expect(await checks()).toEqual([
+      { part_id: blockId, checked_by: author },
+      { part_id: 'note:0', checked_by: cta },
+    ])
+    expect(await as(pglite, learner)('select part_id from training_reviews where draft_id = $1', [draftId])).toHaveLength(0)
+
+    await expect(as(pglite, otherAuthor)('select check_training_part($1, $2, true)', [draftId, blockId])).rejects.toThrow(/can't review it/)
+    await expect(as(pglite, learner)('select check_training_part($1, $2, true)', [draftId, blockId])).rejects.toThrow(/can't review it/)
+    await expect(as(pglite, cta)("select check_training_part($1, 'nope', true)", [draftId])).rejects.toThrow(/no longer in the draft/)
+    await expect(as(pglite, cta)("select check_training_part($1, 'note:99', true)", [draftId])).rejects.toThrow(/no longer in the draft/)
+
+    await as(pglite, cta)("select check_training_part($1, 'note:0', false)", [draftId])
+    expect(await checks()).toEqual([{ part_id: blockId, checked_by: author }])
+  })
+
+  it('saves a hand edit: only the fields the piece has, labeled edited and checked by the editor', async () => {
+    await as(pglite, cta)('select edit_training_part($1, $2, $3)', [
+      draftId, questionId,
+      JSON.stringify({ question: 'Which app posts a journal entry?', choices: 'not a list', citations: ['S9.9'], label: 'source', id: 'x', extra: 1 }),
+    ])
+    const question = (await content()).quiz[0]
+    expect(question).toMatchObject({ id: questionId, question: 'Which app posts a journal entry?', choices: ['FB50', 'ME21N'], citations: [], label: 'edited' })
+    expect(question).not.toHaveProperty('extra')
+    expect(await checks()).toContainEqual({ part_id: questionId, checked_by: cta })
+  })
+
+  it('has Claude rewrite one piece from an instruction, then asks for it to be checked again', async () => {
+    await expect(as(pglite, author)('select revise_training_part($1, $2, $3)', [draftId, blockId, '  '])).rejects.toThrow(/Say what should change/)
+    const [revision] = await as(pglite, author)('select * from revise_training_part($1, $2, $3)', [draftId, blockId, 'Calder uses F0718, say so'])
+    await expect(as(pglite, author)('select revise_training_part($1, $2, $3)', [draftId, blockId, 'Again'])).rejects.toThrow(/already rewriting/)
+    await expect(as(pglite, author)('select edit_training_part($1, $2, $3)', [draftId, blockId, '{"body":"x"}'])).rejects.toThrow(/Claude is rewriting/)
+
+    calls = []
+    answer = {
+      part: block({ body: 'Calder posts with Post General Journal Entries (F0718).', citations: ['S1.1'] }),
+      review_notes: ['Confirm the app name.'],
+      other_companies: [],
+    } as unknown as Draft
+    await generate(draftId)
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0]).toMatchObject({ purpose: 'training_revision', clientId: meridian })
+    expect(calls[0].messages[0].content).toMatch(/Calder uses F0718, say so/)
+    expect(calls[0].messages[0].content).toMatch(/Open Post General Journal Entries \(FB50\)\./)
+
+    const draft = await content()
+    // No documents were used, so the citation is dropped and it stays AI-generated; Calder, another client, is replaced.
+    expect(draft.sections[0].blocks[0]).toMatchObject({
+      id: blockId,
+      body: 'Meridian posts with Post General Journal Entries (F0718).',
+      citations: [],
+      label: 'ai_generated',
+    })
+    expect(draft.review_notes).toContain('Revision of "Posting": Confirm the app name.')
+    expect(await checks()).not.toContainEqual(expect.objectContaining({ part_id: blockId }))
+    const [done] = await sql(pglite, 'select status, detail from training_revisions where id = $1', [revision.id])
+    expect(done).toEqual({ status: 'done', detail: 'Rewritten by fake-writer. Check it again.' })
   })
 })
