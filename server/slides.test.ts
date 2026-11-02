@@ -22,7 +22,7 @@ const content: DeckContent = {
       heading: 'Posting',
       slides: [
         { title: 'Open the app', bullets: ['Use Post General Journal Entries (FB50)'], notes: 'Show the app.', media: 'image:S1', citations: ['S1.1'], label: 'source' },
-        { title: 'Why it matters', bullets: ['Accurate books'], notes: 'Explain.', media: '', citations: [], label: 'ai_generated' },
+        { id: 'why', title: 'Why it matters', bullets: ['Accurate books'], notes: 'Explain.', media: '', citations: [], label: 'ai_generated' },
       ],
     },
     { heading: 'Lesson only', slides: [] },
@@ -31,13 +31,19 @@ const content: DeckContent = {
   sources: [{ ref: 'S1', asset_id: 'a1', title: 'Meridian GL procedure' }],
 };
 
-async function render() {
+async function render(checks = new Map<string, { name: string; at: string }>()) {
   const deck = await renderSlides(content, {
+    checks,
     clientName: 'Meridian Aerostructures',
     classification: 'Client Confidential',
     pictures: new Map([['image:S1', { data: png, mediaType: 'image/png', width: 4, height: 2 }]]),
   });
   return JSZip.loadAsync(deck);
+}
+
+async function allNotes(zip: JSZip) {
+  const notes = Object.keys(zip.files).filter((f) => /^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(f));
+  return (await Promise.all(notes.map(async (f) => xmlText(await zip.file(f)!.async('string'))))).join('|');
 }
 
 const xmlText = (xml: string) => [...xml.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map((m) => m[1]).join(' ');
@@ -68,8 +74,15 @@ describe('renderSlides', () => {
     );
     expect(notes.join('|')).toContain('Show the app.');
     expect(notes.join('|')).toContain('Source: Meridian GL procedure (S1.1)');
-    expect(notes.join('|')).toContain('AI-generated: no source document was cited');
+    expect(notes.join('|')).toContain('AI-generated, NOT YET CHECKED: no source document was cited');
     expect(notes.join('|')).toContain('Answer: A. FB50 posts entries.');
+  });
+
+  it('says who checked an AI-generated slide', async () => {
+    const notes = await allNotes(await render(new Map([['why', { name: 'Kelly Behringer', at: '2026-11-02T15:00:00Z' }]])));
+    expect(notes).toContain('AI-generated: no source document was cited. Checked by Kelly Behringer on Nov 2, 2026.');
+    // Only the quiz question, which nobody checked, is still flagged.
+    expect(notes.match(/NOT YET CHECKED/g)).toHaveLength(1);
   });
 
   it('places the picture on its slide', async () => {

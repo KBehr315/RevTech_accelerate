@@ -4,8 +4,9 @@
 // closing slide. Geometry and palette follow the RevTech deck guide: 13.333 x
 // 7.5 in, 0.62 in margins, nothing below 6.90 in except the footer.
 //
-// Speaker notes carry the trainer's script and where each slide came from, so
-// a reviewer can see which slides were written without a source.
+// Speaker notes carry the trainer's script, where each slide came from, and
+// whether a reviewer has checked it (00112), so a presenter can see which
+// slides were written without a source and not yet checked.
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -38,7 +39,7 @@ const M = 0.62;
 const CONTENT_W = W - 2 * M;
 const FOOTER_Y = 6.99;
 
-type Cited = { citations: string[]; label: 'source' | 'ai_generated' };
+type Cited = { id?: string; citations: string[]; label: 'source' | 'ai_generated' | 'edited' };
 export type DeckContent = {
   title: string;
   audience: string;
@@ -47,8 +48,11 @@ export type DeckContent = {
   objectives: string[];
   sections: { heading: string; slides: ({ title: string; bullets: string[]; notes: string; media: string } & Cited)[] }[];
   quiz: ({ question: string; choices: string[]; correct: number[]; explanation: string } & Cited)[];
-  sources: { ref: string; asset_id: string; title: string }[];
+  /** public_title has other companies' names replaced with the client's (worker/training/draft.ts). */
+  sources: { ref: string; asset_id: string; title: string; public_title?: string }[];
 };
+/** A piece a reviewer ticked as checked: by whom, and when. */
+export type Check = { name: string; at: string };
 export type Picture = { data: Buffer; mediaType: string; width: number; height: number };
 
 /** Width and height in pixels of a PNG or JPEG, or null for anything else. */
@@ -72,7 +76,12 @@ export function imageSize(data: Buffer): { width: number; height: number } | nul
 
 export async function renderSlides(
   content: DeckContent,
-  { clientName, classification, pictures }: { clientName: string; classification: string; pictures: Map<string, Picture> },
+  {
+    clientName,
+    classification,
+    pictures,
+    checks = new Map(),
+  }: { clientName: string; classification: string; pictures: Map<string, Picture>; checks?: Map<string, Check> },
 ): Promise<Buffer> {
   const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE';
@@ -80,11 +89,23 @@ export async function renderSlides(
   pptx.title = content.title;
 
   const sourceTitles = (citations: string[]) =>
-    [...new Set(citations.map((c) => content.sources.find((s) => s.ref === c.split('.')[0])?.title ?? c))].join('; ');
-  const provenance = (part: Cited) =>
-    part.label === 'source'
-      ? `Source: ${sourceTitles(part.citations)} (${part.citations.join(', ')})`
-      : 'AI-generated: no source document was cited. Check it before presenting.';
+    [
+      ...new Set(
+        citations.map((c) => {
+          const source = content.sources.find((s) => s.ref === c.split('.')[0]);
+          return source ? (source.public_title ?? source.title) : c;
+        }),
+      ),
+    ].join('; ');
+  const provenance = (part: Cited) => {
+    const check = part.id ? checks.get(part.id) : undefined;
+    const checked = check ? `Checked by ${check.name} on ${new Date(check.at).toLocaleDateString('en-US', { dateStyle: 'medium' })}.` : '';
+    if (part.label === 'edited') return `Edited by a reviewer. ${checked}`.trim();
+    if (part.label === 'source') return [`Source: ${sourceTitles(part.citations)} (${part.citations.join(', ')}).`, checked].filter(Boolean).join(' ');
+    return check
+      ? `AI-generated: no source document was cited. ${checked}`
+      : 'AI-generated, NOT YET CHECKED: no source document was cited. Check it before presenting.';
+  };
 
   let page = 1;
   const footer = (slide: Slide) => {
@@ -162,7 +183,7 @@ export async function renderSlides(
   cover.addText(`Revelation Technologies  ·  revtech.consulting  ·  ${classification}`, {
     x: M, y: FOOTER_Y, w: CONTENT_W, h: 0.3, fontFace: TEXT, fontSize: 8, color: MUTED, margin: 0,
   });
-  cover.addNotes(`${content.summary}\n\nThis deck is a draft written with AI. Each slide's notes say which source it came from, or that it was AI-generated and needs checking.`);
+  cover.addNotes(`${content.summary}\n\nThis deck is a draft written with AI. Each slide's notes say which source it came from, or that it was AI-generated, and whether a reviewer has checked it.`);
 
   // Sections; dividers once there are four or more real sections.
   const withSlides = content.sections.filter((s) => s.slides.length);

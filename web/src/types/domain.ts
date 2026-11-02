@@ -312,10 +312,14 @@ export type TrainingPiece =
   | 'multiple_choice'
   | 'diagram'
 
-/** "source": cites a passage from a ticked document. "ai_generated": written without one; check it. */
-export type ProvenanceLabel = 'source' | 'ai_generated'
+/**
+ * "source": cites a passage from a ticked document. "ai_generated": written without one; check it.
+ * "edited": a reviewer rewrote it by hand (00112).
+ */
+export type ProvenanceLabel = 'source' | 'ai_generated' | 'edited'
 export type TrainingItem = { title: string; detail: string; x: number; y: number }
 export type TrainingBlock = {
+  id: string
   type: 'text' | 'image' | 'video' | TrainingPiece
   heading: string
   body: string
@@ -327,8 +331,9 @@ export type TrainingBlock = {
   citations: string[]
   label: ProvenanceLabel
 }
-export type TrainingSlide = { title: string; bullets: string[]; notes: string; media: string; citations: string[]; label: ProvenanceLabel }
+export type TrainingSlide = { id: string; title: string; bullets: string[]; notes: string; media: string; citations: string[]; label: ProvenanceLabel }
 export type TrainingQuestion = {
+  id: string
   question: string
   choices: string[]
   correct: number[]
@@ -347,7 +352,8 @@ export type TrainingContent = {
   sections: { heading: string; blocks: TrainingBlock[]; slides: TrainingSlide[] }[]
   quiz: TrainingQuestion[]
   review_notes: string[]
-  sources: { ref: string; asset_id: string; title: string }[]
+  /** public_title has other companies' names replaced with the client's. */
+  sources: { ref: string; asset_id: string; title: string; public_title?: string }[]
   videos: { ref: string; url: string; note: string }[]
 }
 
@@ -365,6 +371,28 @@ export type TrainingDraft = {
   status_detail: string | null
   content: TrainingContent | null
   model: string | null
+  job_id: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+/** A piece of a draft a reviewer ticked as checked (00112). part_id is a block, slide or question id, or "note:<n>". */
+export type TrainingReview = {
+  draft_id: string
+  part_id: string
+  checked_by: string
+  checked_at: string
+}
+
+/** A reviewer's request for Claude to rewrite one piece (00112). */
+export type TrainingRevision = {
+  id: string
+  draft_id: string
+  part_id: string
+  instruction: string
+  status: 'queued' | 'running' | 'done' | 'failed'
+  detail: string | null
   job_id: string | null
   created_by: string
   created_at: string

@@ -14,6 +14,8 @@ type Target = {
   asset_ids: string[]
   videos: Video[]
   classification: Classification
+  client_name: string
+  other_clients: string[]
 }
 
 /** How long to wait for newly uploaded documents to be read before writing without them. */
@@ -44,10 +46,11 @@ export function generateTraining({
 
     try {
       await save('generating', target.asset_ids.length ? 'Reading your documents…' : 'Writing the draft…')
-      const { sources, unread } = await loadSources(ctx, target.asset_ids, readBlob, pause)
+      const { sources, unread } = await loadSources(ctx, target.asset_ids, readBlob, pause, READ_WAIT_MS)
       if (target.asset_ids.length) await save('generating', 'Writing the draft…')
 
-      const prompt = buildPrompt(target, sources, target.videos)
+      const client = { name: target.client_name, otherClients: target.other_clients }
+      const prompt = buildPrompt(target, client, sources, target.videos)
       const pictures = sources.flatMap((s) => (s.image ? [s.image] : []))
       const done = await createGateway(db, adapters).complete(job, ctx, {
         purpose: 'training_draft',
@@ -60,7 +63,7 @@ export function generateTraining({
         maxTokens: 64_000,
       })
 
-      const draft = finalize(JSON.parse(done.text) as Draft, sources, target.videos, prompt.truncated)
+      const draft = finalize(JSON.parse(done.text) as Draft, client, sources, target.videos, prompt.truncated)
       if (unread.length) draft.review_notes.unshift(`Not yet read when the draft was written, so not used: ${unread.join(', ')}.`)
       const used = sources.length ? `from ${sources.length} document${sources.length === 1 ? '' : 's'}` : 'without library documents'
       const checks = draft.review_notes.length
@@ -85,14 +88,15 @@ type Row = { asset_id: string; title: string; version_id: string; extraction_sta
 
 /**
  * The ticked documents as the requester can read them (RLS applies), in the
- * order ticked. Waits a while for any still being read; those still unread
- * after that are left out and named.
+ * order ticked. Waits up to waitMs for any still being read; those still
+ * unread after that are left out and named.
  */
-async function loadSources(
+export async function loadSources(
   ctx: JobContext,
   assetIds: string[],
   readBlob: (blobPath: string) => Promise<Buffer>,
   pause: (ms: number) => Promise<void>,
+  waitMs: number,
 ): Promise<{ sources: Source[]; unread: string[] }> {
   if (!assetIds.length) return { sources: [], unread: [] }
   const read = (tx: Db) =>
@@ -108,7 +112,7 @@ async function loadSources(
   let rows: Row[] = []
   for (let waited = 0; ; waited += POLL_MS) {
     rows = (await ctx.asRequester(read)).rows
-    if (!rows.some((r) => ['pending', 'running'].includes(r.extraction_status)) || waited >= READ_WAIT_MS) break
+    if (!rows.some((r) => ['pending', 'running'].includes(r.extraction_status)) || waited >= waitMs) break
     await pause(POLL_MS)
   }
 
