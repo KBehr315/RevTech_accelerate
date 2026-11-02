@@ -1,4 +1,4 @@
-// Tests for db/ and worker/ (the web app has its own setup under web/).
+// Tests for db/, worker/ and server/ (the web app has its own setup under web/).
 // Each suite starts its own Postgres (PGlite) and applies every migration,
 // which takes several seconds when the suites run side by side, so the
 // setup and test time limits are well above Vitest's defaults.

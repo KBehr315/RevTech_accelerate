@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { db, unwrap } from '@/lib/db'
+import { apiFetch, db, unwrap } from '@/lib/db'
 import type { TrainingDraft, TrainingOutput, TrainingPiece } from '@/types/domain'
 
 const stillWriting = (draft: Pick<TrainingDraft, 'status'>) => draft.status === 'queued' || draft.status === 'generating'
@@ -54,5 +54,21 @@ export function useStartTrainingDraft() {
         }),
       ),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['training-drafts'] }),
+  })
+}
+
+/** Downloads a finished draft's slides as a PowerPoint file (GET /api/training/:id/slides.pptx, server/training.ts). */
+export function useDownloadSlides() {
+  return useMutation({
+    mutationFn: async ({ id, title }: { id: string; title: string }) => {
+      const res = await apiFetch(`/api/training/${id}/slides.pptx`)
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.message || `The download failed (${res.status}).`)
+      const url = URL.createObjectURL(await res.blob())
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${title.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Training'}.pptx`
+      link.click()
+      URL.revokeObjectURL(url)
+    },
   })
 }
