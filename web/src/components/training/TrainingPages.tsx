@@ -1,13 +1,14 @@
 import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { AlertTriangle, Loader2, Sparkles } from 'lucide-react'
+import { toast } from 'sonner'
+import { AlertTriangle, Download, Loader2, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PageHeader } from '@/components/common/PageHeader'
 import { useWorkspace } from '@/components/client/workspace'
-import { useTrainingDraft, useTrainingDrafts } from '@/hooks/useTraining'
+import { useDownloadSlides, useTrainingDraft, useTrainingDrafts } from '@/hooks/useTraining'
 import type { ProvenanceLabel, TrainingBlock, TrainingContent, TrainingDraft } from '@/types/domain'
 import { DRAFT_STATUS_LABELS, OUTPUT_LABELS, PIECE_LABELS } from './labels'
 
@@ -64,6 +65,7 @@ export function TrainingPage() {
 export function TrainingDraftPage() {
   const { draftId } = useParams()
   const { data: draft, isLoading, error } = useTrainingDraft(draftId!)
+  const download = useDownloadSlides()
 
   if (isLoading) return <p className="text-sm text-slate-500">Loading…</p>
   if (error || !draft) return <p className="text-sm text-status-red">This draft doesn't exist, or you can't see it.</p>
@@ -79,6 +81,18 @@ export function TrainingDraftPage() {
             </Badge>
             {draft.outputs.map((o) => OUTPUT_LABELS[o]).join(' + ')}
           </>
+        }
+        actions={
+          draft.status === 'ready' &&
+          draft.outputs.includes('slides') && (
+            <Button
+              disabled={download.isPending}
+              onClick={() => download.mutate({ id: draft.id, title: draft.title }, { onError: (err) => toast.error(err.message) })}
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              {download.isPending ? 'Building the deck…' : 'Download PowerPoint'}
+            </Button>
+          )
         }
       />
       {(draft.status === 'queued' || draft.status === 'generating') && <Writing draft={draft} />}
@@ -146,7 +160,7 @@ function DraftContent({ draft, content }: { draft: TrainingDraft; content: Train
             </div>
           )}
           <p className="text-xs text-slate-500">
-            Coming next: download as PowerPoint, play the interactive lesson, and edit the draft.
+            Coming next: play the interactive lesson, and edit the draft. The PowerPoint's speaker notes say which source each slide came from.
           </p>
         </CardContent>
       </Card>
