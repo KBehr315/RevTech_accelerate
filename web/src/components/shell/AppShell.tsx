@@ -15,6 +15,7 @@ import {
   LogOut,
   Settings,
   SlidersHorizontal,
+  Sparkles,
   Users,
   UsersRound,
   type LucideIcon,
@@ -57,6 +58,7 @@ function navFor(context: ActiveContext, session: Session | undefined): NavItem[]
       if (isCta || roles.includes('contributor') || roles.includes('reviewer')) {
         items.push({ to: `${base}/library`, label: 'Library', icon: Library })
       }
+      if (isCta || roles.includes('contributor')) items.push({ to: `${base}/training`, label: 'Training', icon: Sparkles })
       if (isCta || roles.includes('lms_admin')) items.push({ to: `${base}/members`, label: 'Members', icon: Users })
       if (isCta) items.push({ to: `${base}/audit`, label: 'Audit log', icon: FileClock })
       return items

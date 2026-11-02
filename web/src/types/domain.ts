@@ -296,3 +296,77 @@ export type KnowledgeAssetVersion = {
   created_by: string | null
   created_at: string
 }
+
+export type TrainingOutput = 'slides' | 'lesson'
+export type TrainingPiece =
+  | 'checklist'
+  | 'stat'
+  | 'reveal'
+  | 'hotspot'
+  | 'mistake_better'
+  | 'info_cards'
+  | 'timed_activity'
+  | 'flip_cards'
+  | 'expandable'
+  | 'drag_drop'
+  | 'multiple_choice'
+  | 'diagram'
+
+/** "source": cites a passage from a ticked document. "ai_generated": written without one; check it. */
+export type ProvenanceLabel = 'source' | 'ai_generated'
+export type TrainingItem = { title: string; detail: string; x: number; y: number }
+export type TrainingBlock = {
+  type: 'text' | 'image' | 'video' | TrainingPiece
+  heading: string
+  body: string
+  items: TrainingItem[]
+  correct: number[]
+  seconds: number
+  /** "image:S<n>", "video:<n>", or empty. */
+  media: string
+  citations: string[]
+  label: ProvenanceLabel
+}
+export type TrainingSlide = { title: string; bullets: string[]; notes: string; media: string; citations: string[]; label: ProvenanceLabel }
+export type TrainingQuestion = {
+  question: string
+  choices: string[]
+  correct: number[]
+  explanation: string
+  citations: string[]
+  label: ProvenanceLabel
+}
+
+/** What Claude wrote, checked by the worker (worker/training/draft.ts). Both outputs come from it. */
+export type TrainingContent = {
+  title: string
+  audience: string
+  duration_minutes: number
+  summary: string
+  objectives: string[]
+  sections: { heading: string; blocks: TrainingBlock[]; slides: TrainingSlide[] }[]
+  quiz: TrainingQuestion[]
+  review_notes: string[]
+  sources: { ref: string; asset_id: string; title: string }[]
+  videos: { ref: string; url: string; note: string }[]
+}
+
+/** A training draft written by AI (00111). */
+export type TrainingDraft = {
+  id: string
+  client_id: string
+  title: string
+  brief: string
+  outputs: TrainingOutput[]
+  pieces: TrainingPiece[]
+  asset_ids: string[]
+  videos: { url: string; note: string }[]
+  status: 'queued' | 'generating' | 'ready' | 'failed'
+  status_detail: string | null
+  content: TrainingContent | null
+  model: string | null
+  job_id: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+}

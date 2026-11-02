@@ -42,7 +42,7 @@ export const anthropicAdapter: Adapter = async (provider, request) => {
       .stream({
         model,
         max_tokens: request.maxTokens ?? 64_000,
-        output_config: { effort },
+        output_config: { effort, ...(request.jsonSchema ? { format: { type: 'json_schema' as const, schema: request.jsonSchema } } : {}) },
         ...(request.system ? { system: request.system } : {}),
         messages: withAttachments(request),
         ...(fallback ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const } : {}),

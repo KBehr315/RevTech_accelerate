@@ -1,5 +1,5 @@
 // Hand-authored to match db/migrations/00100_platform_identity_and_tenancy.sql
-// and the migrations after it (00101 jobs, 00102 AI gateway, 00103-00108 knowledge library).
+// and the migrations after it (00101 jobs, 00102 AI gateway, 00103-00110 knowledge library, 00111 training drafts).
 // Update this alongside every migration that changes a table or function the
 // web app uses. Insert/Update list only what callers may actually write: RLS and
 // column grants refuse the rest.
@@ -26,6 +26,9 @@ import type {
   Profile,
   SearchResult,
   SourceFile,
+  TrainingDraft,
+  TrainingOutput,
+  TrainingPiece,
 } from './domain'
 
 type Relationship = {
@@ -243,6 +246,20 @@ export type Database = {
           },
         ]
       >
+      training_drafts: Table<
+        TrainingDraft,
+        never,
+        never,
+        [
+          {
+            foreignKeyName: 'training_drafts_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      >
     }
     Views: { [_ in never]: never }
     Functions: {
@@ -277,6 +294,17 @@ export type Database = {
       delete_asset: { Args: { p_asset_id: string }; Returns: KnowledgeAsset }
       start_preview: { Args: { p_client_id: string; p_role: ClientRole }; Returns: undefined }
       restore_asset: { Args: { p_asset_id: string }; Returns: KnowledgeAsset }
+      start_training_draft: {
+        Args: {
+          p_client_id: string
+          p_brief: string
+          p_outputs: TrainingOutput[]
+          p_pieces: TrainingPiece[]
+          p_asset_ids: string[]
+          p_videos: { url: string; note: string }[]
+        }
+        Returns: TrainingDraft
+      }
       asset_copies: { Args: { p_asset_ids: string[] }; Returns: { copied_from_asset_id: string; scope: KnowledgeScope }[] }
       client_shared_assets: {
         Args: { p_client_id: string }

@@ -32,6 +32,8 @@ export type CompletionRequest = {
   /** Files sent with the last user message: images (PNG, JPEG) and PDFs. */
   attachments?: { mediaType: 'image/png' | 'image/jpeg' | 'application/pdf'; data: Buffer }[]
   maxTokens?: number
+  /** A JSON Schema the reply must follow; the text is then that JSON. */
+  jsonSchema?: Record<string, unknown>
   /** Overrides the provider's configured effort, e.g. 'low' for transcription. */
   effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 }
