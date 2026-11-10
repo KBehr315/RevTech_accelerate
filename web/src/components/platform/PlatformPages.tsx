@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { FileClock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input, Label } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -267,21 +269,39 @@ function byCompany(people: PersonRow[]): CompanyGroup[] {
   return revtech.people.length > 0 ? [revtech, ...sorted] : sorted
 }
 
-export function PlatformAuditPage() {
+/** The platform audit log, opened from Settings. Loads only while open. */
+function AuditLogCard() {
+  const [open, setOpen] = useState(false)
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Audit log</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+        <p>Platform-level changes: roles, people, AI providers and settings. Client changes are in each client's own log.</p>
+        <Button variant="outline" onClick={() => setOpen(true)}>
+          <FileClock className="h-4 w-4" aria-hidden />
+          View audit log
+        </Button>
+      </CardContent>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="flex max-h-[85vh] max-w-5xl flex-col">
+          <DialogHeader>
+            <DialogTitle>Platform audit log</DialogTitle>
+            <DialogDescription>The latest 200 changes, newest first.</DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 overflow-y-auto">{open && <AuditLogTable />}</div>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  )
+}
+
+function AuditLogTable() {
   const { data: events, isLoading } = usePlatformAudit()
   const { data: people } = usePeople()
   const names = new Map(people?.map((p) => [p.id, p.full_name]))
-
-  return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title="Platform audit log" helpKey="platform-audit" />
-      <Card>
-        <CardContent className="p-4">
-          <AuditTable events={events} isLoading={isLoading} nameOf={(id) => (id ? names.get(id) ?? 'Unknown person' : 'System')} />
-        </CardContent>
-      </Card>
-    </div>
-  )
+  return <AuditTable events={events} isLoading={isLoading} nameOf={(id) => (id ? names.get(id) ?? 'Unknown person' : 'System')} />
 }
 
 export function PlatformSettingsPage() {
@@ -337,6 +357,7 @@ export function PlatformSettingsPage() {
           </form>
         </CardContent>
       </Card>
+      <AuditLogCard />
     </div>
   )
 }

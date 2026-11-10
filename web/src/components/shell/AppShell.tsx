@@ -82,7 +82,6 @@ function platformNav(): NavItem[] {
     { to: '/platform/people', label: 'People & roles', icon: Users },
     { to: '/platform/view-as', label: 'View as…', icon: Eye },
     { to: '/platform/ai-providers', label: 'AI providers', icon: Cpu },
-    { to: '/platform/audit', label: 'Audit log', icon: FileClock },
     { to: '/platform/settings', label: 'Settings', icon: Settings },
   ]
 }
