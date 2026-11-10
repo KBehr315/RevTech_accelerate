@@ -25,7 +25,6 @@ import { TrainingDraftPage, TrainingPage } from '@/components/training/TrainingP
 import {
   ClientsPage,
   PeoplePage,
-  PlatformAuditPage,
   PlatformHomePage,
   PlatformSettingsPage,
 } from '@/components/platform/PlatformPages'
@@ -84,7 +83,7 @@ function App() {
                 <Route path="/platform/people" element={<PeoplePage />} />
                 <Route path="/platform/view-as" element={<ViewAsPage />} />
                 <Route path="/platform/ai-providers" element={<AiProvidersPage />} />
-                <Route path="/platform/audit" element={<PlatformAuditPage />} />
+                <Route path="/platform/audit" element={<Navigate to="/platform/settings" replace />} />
                 <Route path="/platform/settings" element={<PlatformSettingsPage />} />
               </Route>
             </Route>
